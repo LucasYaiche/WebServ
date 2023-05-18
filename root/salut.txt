@@ -1,0 +1,17 @@
+--------------------------46ba135368f9651a
+Content-Disposition: form-data; filename="display.html"
+Content-Type: text/html
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Run CGI Script</title>
+</head>
+<body>
+    <form action="/cgi_scripts/display.pl" method="post">
+        <input type="submit" value="Run Script">
+    </form>
+</body>
+</html>
+
+--------------------------46ba135368f9651a--

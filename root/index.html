@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webserv Sucre au Sucre</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f3f5;
+        }
+        .header {
+            background-color: #154a6e;
+            padding: 20px;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: calc(100vh - 100px);
+        }
+        .title {
+            font-size: 48px;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 24px;
+            color: #ffffff;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            width: 60%;
+        }
+        .button-container form {
+            width: 45%;
+        }
+        .button-container input[type=submit] {
+            background-color: #154a6e;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            width: 100%;
+            border-radius: 5px;
+        }
+        .button-container input[type=submit]:hover {
+            background-color: #103955;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">Webserv Sucre au Sucre</h1>
+        <p class="subtitle">by lyaiche and abdkasmi</p>
+    </div>
+    <div class="container">
+        <div class="button-container">
+            <!-- Form from second HTML -->
+            <form action="/cgi_scripts/message.pl" method="post">
+                <input type="submit" value="Run Script 1">
+            </form>
+
+            <!-- Form from third HTML -->
+            <form action="/cgi_scripts/display.pl" method="post">
+                <input type="submit" value="Run Script 2">
+            </form>
+        </div>
+    </div>
+</body>
+</html>
