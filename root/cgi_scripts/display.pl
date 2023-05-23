@@ -5,6 +5,8 @@ use CGI;
 
 my $cgi = CGI->new;
 
+my $port = $ENV{'SERVER_PORT'}; # Access the environment variable
+
 print $cgi->header('text/html');
 print <<EOF;
 <html>
@@ -31,7 +33,7 @@ print <<EOF;
     </style>
 </head>
 <body>
-    <img src="http://localhost:8080/uploads/minion.jpeg" alt="Image">
+    <img src="http://localhost:$port/uploads/minion.jpeg" alt="Image">
 </body>
 </html>
 EOF

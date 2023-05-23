@@ -4,22 +4,11 @@ Socket::Socket() : _socket_fd(-1) {}
 
 Socket::~Socket() {}
 
-void Socket::create_socket(int domain, int type, int protocol, int sockfd)
+void Socket::create_socket()
 {
-    (void)domain;
-    (void)type;
-    (void)protocol;
-
-    if (sockfd != -1)
+    if ((_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
-        _socket_fd = sockfd;
-    }
-    else
-    {
-        if ((_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        {
-            exit(1); // créer une fonction qui gere toutes le erreurs
-        }
+        exit(1); // créer une fonction qui gere toutes le erreurs
     }
 
     int n = 1;
@@ -86,3 +75,18 @@ void Socket::set_non_blocking()
     }
 }
 
+
+int Socket::get_local_port()
+{
+    sockaddr_in sin;
+        socklen_t len = sizeof(sin);
+        if (getsockname(_socket_fd, (struct sockaddr *)&sin, &len) == -1) 
+        {
+            perror("getsockname");
+            return -1;
+        }
+        else 
+        {
+            return ntohs(sin.sin_port);
+        }
+}

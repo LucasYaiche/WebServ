@@ -21,7 +21,7 @@ class Socket
         Socket();
         ~Socket();
 
-        void        create_socket(int domain, int type, int protocol, int sockfd);
+        void        create_socket();
         bool        bind(const std::string& address, int port);
         bool        listen(int backlog);
         int         accept(sockaddr *client_address, socklen_t *client_addr_len);
@@ -32,6 +32,7 @@ class Socket
         void        set_non_blocking();
         int         get_fd() const{return this->_socket_fd;};
         void        set_socket_fd(int sockfd){  _socket_fd = sockfd;};
+        int         get_local_port();
         
     private:    
     

@@ -4,8 +4,8 @@
 #include <fstream>
 #include <sstream>
 
-CGI::CGI(const std::string& script_path, const std::string& query_string, const Request& request) 
-		: _script_path(script_path), _query_string(query_string), _request(request){}
+CGI::CGI(const std::string& script_path, const std::string& query_string, const Request& request, int port) 
+		: _script_path(script_path), _query_string(query_string), _request(request), _port(port){}
 
 CGI::~CGI() {}
 
@@ -38,6 +38,11 @@ std::string CGI::run_cgi_script()
 	if (setenv("CONTENT_LENGTH", std::to_string(_request.get_body().size()).c_str(), 1) == -1) 
 	{
 		throw std::runtime_error("Failed to set CONTENT_LENGTH environment variable");
+	}
+	if (setenv("SERVER_PORT", std::to_string(_port).c_str(), 1) == -1)
+	{
+		std::cout << "salut" << std::endl;
+		throw std::runtime_error("Failed to set SERVER_PORT environment variable");
 	}
 
 	// Execute the CGI script and capture its output
@@ -79,6 +84,7 @@ std::string CGI::run_cgi_script()
 	unsetenv("REQUEST_METHOD");
 	unsetenv("CONTENT_TYPE");
 	unsetenv("CONTENT_LENGTH");
+	unsetenv("SERVER_PORT");
 
 	// Parse the headers and content from the CGI script's output
 	std::string headers;
@@ -127,7 +133,7 @@ std::string CGI::run_cgi_script()
 	response += "\r\n";
 	response += content;
 
-	std::cout << response << std::endl;
+	// std::cout << response << std::endl;
 
 	return response;
 }

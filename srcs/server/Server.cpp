@@ -1,29 +1,33 @@
 #include "Server.hpp"
 
 
-Server::Server(const std::string& address, int port)
+Server::Server(std::vector<ServInfo> ports) : _ports(ports)
 {   
-    _server_socket.create_socket(AF_INET, SOCK_STREAM, 0, -1);
-    _server_socket.set_non_blocking();
-    if (!_server_socket.bind(address, port)) 
+    for(size_t i=0; i < ports.size(); i++)
     {
-        throw std::runtime_error("Failed to bind server socket.");
-    }
+        Socket socket;
+        socket.create_socket();
+        socket.set_non_blocking();
+        if (!socket.bind("127.0.0.1", ports[i].getPort())) 
+        {
+            throw std::runtime_error("Failed to bind server socket.");
+        }
 
-    if (!_server_socket.listen(42)) // A voir si on peut pas le preset dans les fichiers de config
-    {
-        std::cout << "listen error" << std::endl;
-        throw std::runtime_error("Failed to listen on server socket.");
-    }
-    // Add the server socket to the fds vector with the POLLIN event
-    pollfd server_pollfd;
-    server_pollfd.fd = _server_socket.get_fd();
-    server_pollfd.events = POLLIN;
-    server_pollfd.revents = 0;
-    _fds.push_back(server_pollfd);
+        if (!socket.listen(42)) // A voir si on peut pas le preset dans les fichiers de config
+        {
+            std::cout << "listen error" << std::endl;
+            throw std::runtime_error("Failed to listen on server socket.");
+        }
 
-    _fds[0].fd = _server_socket.get_fd();
-    _fds[0].events = POLLIN;
+        _server_sockets.push_back(socket);
+
+        // Add the server socket to the fds vector with the POLLIN event
+        pollfd server_pollfd;
+        server_pollfd.fd = socket.get_fd();
+        server_pollfd.events = POLLIN;
+        server_pollfd.revents = 0;
+        _fds.push_back(server_pollfd);
+    }
 }
 
 Server::~Server() {}
@@ -40,7 +44,6 @@ void Server::run()
             {
                 std::cerr << "poll time out" << std::endl;
                 continue;
-
             } 
             else 
             {
@@ -54,38 +57,46 @@ void Server::run()
         {
             if (_fds[i].revents & POLLIN) 
             {
-                if (_fds[i].fd == _server_socket.get_fd()) 
+                bool is_server_fd = false;
+                for(size_t j = 0; j < _server_sockets.size(); j++)
                 {
-                    sockaddr_in client_address;
-                    socklen_t client_addr_len = sizeof(client_address);
-                    // Accept incoming connections (Step 5)
-                    int client_socket_fd = _server_socket.accept((sockaddr*)&client_address, &client_addr_len);
-                    if (client_socket_fd == -1)
+                    if (_fds[i].fd == _server_sockets[j].get_fd()) 
                     {
-                        std::cerr << "accept() failed: " << std::endl;
-                        continue;
-                    }
-                    else {
-                        // Set the new client socket to non-blocking mode
-                        Socket client_socket;
-                        client_socket.set_socket_fd(_fds[i].fd);
-                        client_socket.set_non_blocking();
-                        int n = 1;
-                        if (setsockopt(client_socket.get_fd(), SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)))
-                        {
-                            std::cout << "setsockopt socket error" << std::endl;
-                        }
+                        is_server_fd = true;
 
-                        // Add the client socket to the _fds vector with the POLLIN event
-                        pollfd client_pollfd;
-                        client_pollfd.fd = client_socket_fd;
-                        client_pollfd.events = POLLIN; // specifies thta we are interested in the read event (incoming connections)
-                        client_pollfd.revents = 0; // reset the returned event field
-                        _fds.push_back(client_pollfd);
+                        sockaddr_in client_address;
+                        socklen_t client_addr_len = sizeof(client_address);
+                        // Accept incoming connections (Step 5)
+                        int client_socket_fd = _server_sockets[j].accept((sockaddr*)&client_address, &client_addr_len);
+                        if (client_socket_fd == -1)
+                        {
+                            std::cerr << "accept() failed: " << std::endl;
+                            continue;
+                        }
+                        else 
+                        {
+                            // Set the new client socket to non-blocking mode
+                            Socket client_socket;
+                            client_socket.set_socket_fd(client_socket_fd);
+                            client_socket.set_non_blocking();
+                            int n = 1;
+                            if (setsockopt(client_socket.get_fd(), SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)))
+                            {
+                                std::cout << "setsockopt socket error" << std::endl;
+                            }
+
+                            // Add the client socket to the _fds vector with the POLLIN event
+                            pollfd client_pollfd;
+                            client_pollfd.fd = client_socket_fd;
+                            client_pollfd.events = POLLIN; // specifies that we are interested in the read event (incoming connections)
+                            client_pollfd.revents = 0; // reset the returned event field
+                            _fds.push_back(client_pollfd);
+                        }
+                        break;
                     }
                 }
 
-                else 
+                if (!is_server_fd)
                 {
                     Socket client_socket;
                     client_socket.set_socket_fd(_fds[i].fd);
@@ -105,47 +116,50 @@ void Server::run()
                         continue;
                     }
 
+                    else
+                    {
+                        // Process the data (in this case, just echo it back to the client)
+                        Request request;
+                        request.parse(buffer, bytes_received);
+
+                        // Process the parsed request
+                        if (request.is_cgi()) 
+                        {
+                            std::cout << request.get_headers().at("Content-Type") << std::endl;
+                            std::cout << request.get_uri() << std::endl;
+                            handle_cgi_request(_fds[i].fd, request);
+                        }
+                        else if (request.get_method() == "GET") 
+                        {
+                            handle_get_request(_fds[i].fd, request);
+                        }
+                        else if (request.get_method() == "POST") 
+                        {
+                            handle_post_request(_fds[i].fd, request);
+                        }
+                        else if (request.get_method() == "DELETE") 
+                        {
+                            handle_delete_request(_fds[i].fd, request);
+                        } 
                         else 
                         {
-                            // Process the data (in this case, just echo it back to the client)
-                            Request request;
-                            request.parse(buffer, bytes_received);
-
-                            // Process the parsed request
-                            if (request.is_cgi()) 
-                            {
-                                std::cout << request.get_headers().at("Content-Type") << std::endl;
-                                std::cout << request.get_uri() << std::endl;
-                                handle_cgi_request(_fds[i].fd, request);
-                            }
-                            else if (request.get_method() == "GET") 
-                            {
-                                handle_get_request(_fds[i].fd, request);
-                            }
-                            else if (request.get_method() == "POST") 
-                            {
-                                handle_post_request(_fds[i].fd, request);
-                            }
-                            else if (request.get_method() == "DELETE") 
-                            {
-                                handle_delete_request(_fds[i].fd, request);
-                            } 
-                            else 
-                            {
-                                // Invalid or unsupported method
-                                std::cout << "error method" << std::endl;
-                                send_error_response(_fds[i].fd, 405, "Method Not Allowed");
-                            }
-                            
-                            // Send the data back to the client
-                            client_socket.send(buffer, bytes_received);
+                            // Invalid or unsupported method
+                            std::cout << "error method" << std::endl;
+                            send_error_response(_fds[i].fd, 405, "Method Not Allowed");
                         }
+                        
+                        // Send the data back to the client
+                        client_socket.send(buffer, bytes_received);
+                    }
                 }
             }
-            usleep(5000);
         }
+        usleep(5000);
     }
-    _server_socket.close();
+    for(size_t i = 0; i < _server_sockets.size(); i++)
+    {
+        _server_sockets[i].close();
+    }
 }
 
 void Server::handle_cgi_request(int client_fd, const Request& request) 
@@ -156,13 +170,16 @@ void Server::handle_cgi_request(int client_fd, const Request& request)
     std::string path = uri.substr(0, delimiter_pos);
     std::string query_string = delimiter_pos == std::string::npos ? "" : uri.substr(delimiter_pos + 1);
 
+    // Get the port the client is connected to
+    Socket client_socket;
+    client_socket.set_socket_fd(client_fd);
+    int port = client_socket.get_local_port();
+    
     // Create a new CGI instance and run the script
-    CGI cgi(path, query_string, request);
+    CGI cgi(path, query_string, request, port);
     std::string script_output = cgi.run_cgi_script();
 
     // Send the script output back to the client
-    Socket client_socket;
-    client_socket.set_socket_fd(client_fd);
     client_socket.set_non_blocking();
     client_socket.send(script_output.c_str(), script_output.size());
 }
