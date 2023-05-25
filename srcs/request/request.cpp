@@ -78,7 +78,8 @@ void Request::parse(const char *buffer, size_t length)
         content_length = std::stol(headers["Content-Length"]);
     }
     body.resize(content_length);
-   if  (request_stream.read(&body[0], content_length) == -1) {
+   request_stream.read(&body[0], content_length);
+   if (content_length == -1){
        std::cout << "Error: could not read data\n";
        exit(1);
    }
