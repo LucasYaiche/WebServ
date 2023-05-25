@@ -67,14 +67,15 @@ ssize_t Socket::send(const void* buffer, size_t length)
     return ::send(_socket_fd, buffer, length, 0);
 }
 
-void Socket::set_non_blocking()
+int Socket::set_non_blocking()
 {
     int flags = fcntl(_socket_fd, F_SETFL, O_NONBLOCK);
     if (flags == -1)
     {
         std::cerr << "non-blocking error" << std::endl;
-        exit(1);
+        return -1;
     }
+    return 0;
 }
 
 

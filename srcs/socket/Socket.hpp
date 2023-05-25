@@ -29,7 +29,7 @@ class Socket
         ssize_t     send(const void* buffer, size_t length);
         ssize_t     recv(void* buffer, size_t length);
         void        close();
-        void        set_non_blocking();
+        int         set_non_blocking();
         int         get_fd() const{return this->_socket_fd;};
         void        set_socket_fd(int sockfd){  _socket_fd = sockfd;};
         int         get_local_port();

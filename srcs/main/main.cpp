@@ -3,8 +3,7 @@
 #include "../parsing/Location.hpp"
 #include "../parsing/ServInfo.hpp"
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     if (argc == 2) {
         try {
             // Create a server listening on port 8080
@@ -18,8 +17,7 @@ int main(int argc, char **argv)
             std::cerr << e.what() << std::endl;
             return 1;
         }
-    }
-    else {
+    } else {
         std::cerr << "use : ./webserv [path to configuration file]" << std::endl;
         return 1;
     }

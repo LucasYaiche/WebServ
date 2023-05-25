@@ -32,7 +32,7 @@ Request::Request(const std::string& request_str)
     // }
 }
 
-void Request::parse(const char *buffer, size_t length) 
+int Request::parse(const char *buffer, size_t length)
 {
     std::istringstream request_stream(std::string(buffer, length));
     std::string line;
@@ -79,10 +79,11 @@ void Request::parse(const char *buffer, size_t length)
     }
     body.resize(content_length);
    request_stream.read(&body[0], content_length);
-   if (content_length == -1){
+   if (content_length == -1) {
        std::cout << "Error: could not read data\n";
-       exit(1);
+       return -1;
    }
+   return 0;
 }
 
 bool Request::is_cgi() const {

@@ -20,7 +20,7 @@ class Server
         ~Server();
 
         void	                run();
-        void                    handle_cgi_request(int client_fd, const Request& request);
+        int                     handle_cgi_request(int client_fd, const Request& request);
 
 
 	private:

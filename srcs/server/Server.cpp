@@ -78,13 +78,13 @@ void Server::run()
                             // Set the new client socket to non-blocking mode
                             Socket client_socket;
                             client_socket.set_socket_fd(client_socket_fd);
-                            client_socket.set_non_blocking();
+                            if (client_socket.set_non_blocking() == -1)
+                                continue;
                             int n = 1;
                             if (setsockopt(client_socket.get_fd(), SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)) == -1)
                             {
                                 std::cerr << "setsockopt socket error" << std::endl;
-                                client_socket.close();
-                                exit(1);
+                                continue;
                             }
 
                             // Add the client socket to the _fds vector with the POLLIN event
@@ -121,26 +121,31 @@ void Server::run()
                     {
                         // Process the data (in this case, just echo it back to the client)
                         Request request;
-                        request.parse(buffer, bytes_received);
+                        if (request.parse(buffer, bytes_received) == -1)
+                            continue;
 
                         // Process the parsed request
                         if (request.is_cgi())
                         {
                             std::cout << request.get_headers().at("Content-Type") << std::endl;
                             std::cout << request.get_uri() << std::endl;
-                            handle_cgi_request(_fds[i].fd, request);
+                            if (handle_cgi_request(_fds[i].fd, request) == -1)
+                                continue;
                         }
                         else if (request.get_method() == "GET") 
                         {
-                            handle_get_request(_fds[i].fd, request);
+                            if (handle_get_request(_fds[i].fd, request) == -1)
+                                continue;
                         }
                         else if (request.get_method() == "POST") 
                         {
-                            handle_post_request(_fds[i].fd, request);
+                            if (handle_post_request(_fds[i].fd, request) == -1)
+                                continue;
                         }
                         else if (request.get_method() == "DELETE") 
                         {
-                            handle_delete_request(_fds[i].fd, request);
+                            if (handle_delete_request(_fds[i].fd, request) == -1)
+                                continue;
                         }
                         else 
                         {
@@ -152,7 +157,7 @@ void Server::run()
                         // Send the data back to the client
                         if (client_socket.send(buffer, bytes_received) == -1) {
                             std::cerr << "Error: could not send data\n";
-                            exit(1);
+                            continue;
                         }
                     }
                 }
@@ -166,7 +171,7 @@ void Server::run()
     }
 }
 
-void Server::handle_cgi_request(int client_fd, const Request& request) 
+int Server::handle_cgi_request(int client_fd, const Request& request)
 {
     // Extract the path and the query string from the URI
     std::string uri = request.get_uri();
@@ -187,6 +192,7 @@ void Server::handle_cgi_request(int client_fd, const Request& request)
     client_socket.set_non_blocking();
     if (client_socket.send(script_output.c_str(), script_output.size()) == -1) {
         std::cerr << "Error: could not send data\n";
-        exit(1);
+        return -1;
     }
+    return 0;
 }
