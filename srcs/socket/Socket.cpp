@@ -8,13 +8,14 @@ void Socket::create_socket()
 {
     if ((_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
-        exit(1); // créer une fonction qui gere toutes le erreurs
+        std::cerr << "could not create socket\n";
+        exit(1);
     }
 
     int n = 1;
     if (setsockopt(_socket_fd, SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)))
     {
-        std::cout << "setsockopt socket error" << std::endl;
+        std::cerr << "setsockopt socket error" << std::endl;
         exit(1);
     }
 }
@@ -30,7 +31,8 @@ bool    Socket::bind(const std::string& address, int port)
 
     if (::bind(_socket_fd, (sockaddr*)&server_addr, sizeof(server_addr)) == -1)
     {
-        return 0; // peut etre mettre un message d'erreur
+        std::cerr << "Error: could not assign a name to socket\n";
+        return 0;
     }
     return 1;
 }
@@ -70,7 +72,7 @@ void Socket::set_non_blocking()
     int flags = fcntl(_socket_fd, F_SETFL, O_NONBLOCK);
     if (flags == -1)
     {
-        std::cout << "non-blocking error" << std::endl;
+        std::cerr << "non-blocking error" << std::endl;
         exit(1);
     }
 }

@@ -19,7 +19,6 @@ std::string CGI::run_cgi_script()
 	{
 		throw std::runtime_error("CGI script not found or not executable: " + full_script_path);
 	}
-
 	// Set up the environment for the CGI script
 	if (setenv("QUERY_STRING", _query_string.c_str(), 1) == -1) 
 	{
@@ -29,19 +28,16 @@ std::string CGI::run_cgi_script()
 	{
 		throw std::runtime_error("Failed to set REQUEST_METHOD environment variable");
 	}
-
 	if (setenv("CONTENT_TYPE", _request.get_headers().at("Content-Type").c_str(), 1) == -1) 
 	{
 		throw std::runtime_error("Failed to set CONTENT_TYPE environment variable");
 	}
-
 	if (setenv("CONTENT_LENGTH", std::to_string(_request.get_body().size()).c_str(), 1) == -1) 
 	{
 		throw std::runtime_error("Failed to set CONTENT_LENGTH environment variable");
 	}
 	if (setenv("SERVER_PORT", std::to_string(_port).c_str(), 1) == -1)
 	{
-		std::cout << "salut" << std::endl;
 		throw std::runtime_error("Failed to set SERVER_PORT environment variable");
 	}
 
@@ -56,9 +52,15 @@ std::string CGI::run_cgi_script()
 	// If this is a POST request, write the request body to the CGI script's standard input
 	if (_request.get_method() == "POST") 
 	{
-		fwrite(_request.get_body().data(), sizeof(char), _request.get_body().size(), pipe);
-		fflush(pipe); // Ensure that the input data is sent to the script
-	}
+		if (fwrite(_request.get_body().data(), sizeof(char), _request.get_body().size(), pipe) == 0) {
+            std::cerr << "Error: could not write data\n";
+            exit(1);
+        }
+		if (fflush(pipe) == EOF) { // Ensure that the input data is sent to the script
+            std::cerr << "Error: could not fflush\n";
+            exit(1);
+        }
+    }
 
 	// Read the output from the process
 	char buffer[5242880];

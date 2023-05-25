@@ -80,9 +80,11 @@ void Server::run()
                             client_socket.set_socket_fd(client_socket_fd);
                             client_socket.set_non_blocking();
                             int n = 1;
-                            if (setsockopt(client_socket.get_fd(), SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)))
+                            if (setsockopt(client_socket.get_fd(), SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)) == -1)
                             {
-                                std::cout << "setsockopt socket error" << std::endl;
+                                std::cerr << "setsockopt socket error" << std::endl;
+                                client_socket.close();
+                                exit(1);
                             }
 
                             // Add the client socket to the _fds vector with the POLLIN event
@@ -95,7 +97,6 @@ void Server::run()
                         break;
                     }
                 }
-
                 if (!is_server_fd)
                 {
                     Socket client_socket;
@@ -123,7 +124,7 @@ void Server::run()
                         request.parse(buffer, bytes_received);
 
                         // Process the parsed request
-                        if (request.is_cgi()) 
+                        if (request.is_cgi())
                         {
                             std::cout << request.get_headers().at("Content-Type") << std::endl;
                             std::cout << request.get_uri() << std::endl;
@@ -140,16 +141,19 @@ void Server::run()
                         else if (request.get_method() == "DELETE") 
                         {
                             handle_delete_request(_fds[i].fd, request);
-                        } 
+                        }
                         else 
                         {
                             // Invalid or unsupported method
-                            std::cout << "error method" << std::endl;
+                            std::cerr << "error method" << std::endl;
                             send_error_response(_fds[i].fd, 405, "Method Not Allowed");
                         }
                         
                         // Send the data back to the client
-                        client_socket.send(buffer, bytes_received);
+                        if (client_socket.send(buffer, bytes_received) == -1) {
+                            std::cerr << "Error: could not send data\n";
+                            exit(1);
+                        }
                     }
                 }
             }
@@ -181,5 +185,8 @@ void Server::handle_cgi_request(int client_fd, const Request& request)
 
     // Send the script output back to the client
     client_socket.set_non_blocking();
-    client_socket.send(script_output.c_str(), script_output.size());
+    if (client_socket.send(script_output.c_str(), script_output.size()) == -1) {
+        std::cerr << "Error: could not send data\n";
+        exit(1);
+    }
 }

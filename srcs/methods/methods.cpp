@@ -29,10 +29,16 @@ void handle_get_request(int client_socket, const Request& request)
         response_header += "Content-Length: " + std::to_string(file_content.size()) + "\r\n";
         response_header += "\r\n";
 
-        send(client_socket, response_header.c_str(), response_header.size(), 0);
+        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
+            std::cerr << "Error: could not send data\n";
+            exit(1);
+        }
 
         // Send the file content
-        send(client_socket, file_content.data(), file_content.size(), 0);
+        if (send(client_socket, file_content.data(), file_content.size(), 0) == -1) {
+            std::cerr << "Error: could not send data\n";
+            exit(1);
+        }
     } 
     else // If file not found
     {
@@ -63,7 +69,10 @@ void handle_post_request(int client_socket, const Request& request)
         std::string response_header = "HTTP/1.1 201 Created\r\n";
         response_header += "\r\n";
 
-        send(client_socket, response_header.c_str(), response_header.size(), 0);
+        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
+            std::cerr << "Error: could not send data\n";
+            exit(1);
+        }
     } 
     else // If file not found
     {
@@ -85,8 +94,11 @@ void handle_delete_request(int client_socket, const Request& request)
         // Send success response
         std::string response_header = "HTTP/1.1 204 No Content\r\n";
         response_header += "\r\n";
-        send(client_socket, response_header.c_str(), response_header.size(), 0);
-    } 
+        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
+            std::cerr << "Error: could not send data\n";
+            exit(1);
+        }
+    }
     else 
     {
         // File not found or couldn't be deleted
@@ -106,8 +118,14 @@ void send_error_response(int client_socket, int status_code, const std::string& 
     response_header += "Content-Length: " + std::to_string(error_page.size()) + "\r\n";
     response_header += "\r\n";
 
-    send(client_socket, response_header.c_str(), response_header.size(), 0);
+    if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
+        std::cerr << "Error: could not send data\n";
+        exit(1);
+    }
 
     // Send the error page content
-    send(client_socket, error_page.data(), error_page.size(), 0);
+    if (send(client_socket, error_page.data(), error_page.size(), 0) == -1) {
+        std::cerr << "Error: could not send data\n";
+        exit(1);
+    }
 }
