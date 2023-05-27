@@ -69,6 +69,9 @@ public:
     void handleLocation(bool& in_location, ServInfo& current_server, Location& current_location, std::stringstream& ss) {
         if (in_location) {
             checkLocation(current_location);
+            std::string str = current_location.getPath();
+            std::string root = current_location.getRoot();
+            current_location.setPath(root + str);
             current_server.setLocation(current_location);
             current_location = Location();
         }
