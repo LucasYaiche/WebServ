@@ -116,13 +116,55 @@ int handle_delete_request(int client_socket, const Request& request)
 
 int send_error_response(int client_socket, int status_code, const std::string& status_message)
 {
-    // Create the error page content
-    std::string error_page = "<html><head><title>Error " + std::to_string(status_code) + "</title></head>";
-    error_page += "<body><h1>Error " + std::to_string(status_code) + ": " + status_message + "</h1></body></html>";
-
-    // Send the HTTP response header
+    std::string error_page;
     std::string response_header = "HTTP/1.1 " + std::to_string(status_code) + " " + status_message + "\r\n";
     response_header += "Content-Type: text/html\r\n";
+
+    // Common styles for all error pages
+    std::string style = "<style>"
+                            "body {"
+                                "font-family: Arial, sans-serif;"
+                                "margin: 0;"
+                                "padding: 0;"
+                                "background-color: #f0f4f5;"
+                                "display: flex;"
+                                "justify-content: center;"
+                                "align-items: center;"
+                                "height: 100vh;"
+                            "}"
+                            ".container {"
+                                "text-align: center;"
+                            "}"
+                            ".error {"
+                                "font-size: 72px;"
+                                "color: #154a6e;"
+                            "}"
+                            ".message {"
+                                "font-size: 24px;"
+                                "color: #154a6e;"
+                            "}"
+                        "</style>";
+
+    switch (status_code) 
+    {
+        case 404:
+            // Custom error page for 404
+            error_page = "<html><head><title>Error 404</title>" + style + "</head>";
+            error_page += "<body><div class='container'><h1 class='error'>Error 404</h1><p class='message'>The page you requested could not be found.</p></div></body></html>";
+            break;
+        
+        case 405:
+            // Custom error page for 405
+            error_page = "<html><head><title>Error 405</title>" + style + "</head>";
+            error_page += "<body><div class='container'><h1 class='error'>Error 405</h1><p class='message'>Method Not Allowed.</p></div></body></html>";
+            break;
+
+        default:
+            error_page = "<html><head><title>Error " + std::to_string(status_code) + "</title>" + style + "</head>";
+            error_page += "<body><div class='container'><h1 class='error'>Error " + std::to_string(status_code) + "</h1><p class='message'>" + status_message + "</p></div></body></html>";
+            break;
+    }
+
     response_header += "Content-Length: " + std::to_string(error_page.size()) + "\r\n";
     response_header += "\r\n";
 
