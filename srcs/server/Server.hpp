@@ -20,7 +20,7 @@ class Server
         ~Server();
 
         void	                run();
-        int                     handle_cgi_request(int client_fd, const Request& request);
+        int                     handle_cgi_request(int client_fd, const Request& request, std::vector<ServInfo> ports);
 
 
 	private:

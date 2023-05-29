@@ -4,14 +4,30 @@
 #include <fstream>
 #include <sstream>
 
-CGI::CGI(const std::string& script_path, const std::string& query_string, const Request& request, int port) 
-		: _script_path(script_path), _query_string(query_string), _request(request), _port(port){}
+CGI::CGI(const std::string& script_path, const std::string& query_string, const Request& request, std::vector<ServInfo> ports, int client_fd) 
+		: _script_path(script_path), _query_string(query_string), _request(request)
+{
+	// Get the port the client is connected to
+    Socket client_socket;
+    client_socket.set_socket_fd(client_fd);
+    int port = client_socket.get_local_port();
+
+	//Get the correct data set of the port
+	for(size_t i=0; i < ports.size(); i++)
+	{
+		if(ports[i].getPort() == port)
+		{
+			_port_info = ports[i];
+			break;
+		}
+	}
+}
 
 CGI::~CGI() {}
 
 std::string CGI::run_cgi_script()
 {
-	std::string base_path = "./root";
+	std::string base_path = _port_info.getRoot();
 	std::string full_script_path = base_path + _script_path;
 
 	// Ensure the script file exists and is executable
@@ -36,7 +52,7 @@ std::string CGI::run_cgi_script()
 	{
 		throw std::runtime_error("Failed to set CONTENT_LENGTH environment variable");
 	}
-	if (setenv("SERVER_PORT", std::to_string(_port).c_str(), 1) == -1)
+	if (setenv("SERVER_PORT", std::to_string(_port_info.getPort()).c_str(), 1) == -1)
 	{
 		throw std::runtime_error("Failed to set SERVER_PORT environment variable");
 	}
@@ -52,10 +68,12 @@ std::string CGI::run_cgi_script()
 	// If this is a POST request, write the request body to the CGI script's standard input
 	if (_request.get_method() == "POST") 
 	{
-		if (fwrite(_request.get_body().data(), sizeof(char), _request.get_body().size(), pipe) == 0) {
-            std::cerr << "Error: could not write data\n";
-            exit(1);
-        }
+		size_t written = fwrite(_request.get_body().data(), sizeof(char), _request.get_body().size(), pipe);
+		if (written < _request.get_body().size()) 
+		{
+			std::cerr << "Error: writting to file\n";
+			exit(1);
+    	}
 		if (fflush(pipe) == EOF) { // Ensure that the input data is sent to the script
             std::cerr << "Error: could not fflush\n";
             exit(1);

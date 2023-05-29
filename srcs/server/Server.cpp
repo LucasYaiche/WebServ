@@ -102,7 +102,19 @@ void Server::run()
                     Socket client_socket;
                     client_socket.set_socket_fd(_fds[i].fd);
                     ssize_t bytes_received = 0;
-                    const size_t buffer_size = 5242880; // 5 MB
+                    int port_nb = client_socket.get_local_port();
+
+                    //Get the correct data set of the port
+                    ServInfo    current_port;
+                    for(size_t i=0; i < _ports.size(); i++)
+                    {
+                        if(_ports[i].getPort() == port_nb)
+                        {
+                            current_port = _ports[i];
+                            break;
+                        }
+                    }
+                    const size_t buffer_size = current_port.getBody_size(); // 5 MB
                     char* buffer = new char[buffer_size];
 
                     // Receive data
@@ -123,26 +135,74 @@ void Server::run()
                         Request request;
                         if (request.parse(buffer, bytes_received) == -1)
                             continue;
+                        
+                        // SET the requested location
+                        std::string request_location = request.get_uri();
+
+
+                        // Find the Location requested in the data set of the port
+                        bool        location_check = false;
+                        Location    port_location;
+                        for(size_t i=0; i < current_port.getLocation().size(); i++)
+                        {
+                            if(current_port.getLocation()[i].getPath() == request_location)
+                            {
+                                port_location = current_port.getLocation()[i];
+                                location_check = true;
+                                break;
+                            }
+                        }
+
+
+
+                        // If there is a location in the config file, check fot the allowed method(s)
+                        std::string method = request.get_method();
+                        bool methodFound = false;
+                        for (size_t i = 0; i < current_port.getMethods().size(); i++) 
+                        {
+                            if (current_port.getMethods()[i] == method) {
+                                methodFound = true;
+                                break;
+                            }
+                        }
+                        if (!methodFound) {
+                            method = "";
+                        }
+
+                        // For the port_location
+                        if(location_check) 
+                        {
+                            methodFound = false;
+                            for (size_t i = 0; i < port_location.getMethods().size(); i++) 
+                            {
+                                if (port_location.getMethods()[i] == method) {
+                                    methodFound = true;
+                                    break;
+                                }
+                            }
+                            if (!methodFound) 
+                            {
+                                method = "";
+                            }
+                        }
 
                         // Process the parsed request
-                        if (request.is_cgi())
+                        if (request.is_cgi() && method == "POST")
                         {
-                            std::cout << request.get_headers().at("Content-Type") << std::endl;
-                            std::cout << request.get_uri() << std::endl;
-                            if (handle_cgi_request(_fds[i].fd, request) == -1)
+                            if (handle_cgi_request(_fds[i].fd, request, _ports) == -1)
                                 continue;
                         }
-                        else if (request.get_method() == "GET") 
+                        else if (method == "GET") 
                         {
                             if (handle_get_request(_fds[i].fd, request) == -1)
                                 continue;
                         }
-                        else if (request.get_method() == "POST") 
+                        else if (method == "POST") 
                         {
                             if (handle_post_request(_fds[i].fd, request) == -1)
                                 continue;
                         }
-                        else if (request.get_method() == "DELETE") 
+                        else if (method == "DELETE") 
                         {
                             if (handle_delete_request(_fds[i].fd, request) == -1)
                                 continue;
@@ -171,7 +231,7 @@ void Server::run()
     }
 }
 
-int Server::handle_cgi_request(int client_fd, const Request& request)
+int Server::handle_cgi_request(int client_fd, const Request& request, std::vector<ServInfo> ports)
 {
     // Extract the path and the query string from the URI
     std::string uri = request.get_uri();
@@ -179,13 +239,11 @@ int Server::handle_cgi_request(int client_fd, const Request& request)
     std::string path = uri.substr(0, delimiter_pos);
     std::string query_string = delimiter_pos == std::string::npos ? "" : uri.substr(delimiter_pos + 1);
 
-    // Get the port the client is connected to
     Socket client_socket;
     client_socket.set_socket_fd(client_fd);
-    int port = client_socket.get_local_port();
     
     // Create a new CGI instance and run the script
-    CGI cgi(path, query_string, request, port);
+    CGI cgi(path, query_string, request, ports, client_fd);
     std::string script_output = cgi.run_cgi_script();
 
     // Send the script output back to the client

@@ -116,7 +116,7 @@ public:
             ss >> index;
             if (current_server.getRoot().empty())
                 errorExit("Error: no root path to access index");
-            path = current_server.getRoot() + index;
+            path = current_server.getRoot() + "/" + index;
             if (stat(path.c_str(), &buffer) != 0)
                 errorExit("Error: Index file does not exist");
             if (in_location)
@@ -215,7 +215,7 @@ public:
             errorExit("Error: no root directory found");
         if (current_server.getIndex().empty())
             errorExit("Error: no index file found");
-        if (current_server.getMethod().empty())
+        if (current_server.getMethods().empty())
             errorExit("Error: no methods found");
     }
 
@@ -231,8 +231,8 @@ public:
     bool is_allowed_method(std::string serv_name, std::string method) {
         for (size_t i = 0; i < _configServ.size(); i++) {
             if (serv_name.compare(_configServ[i].getName()) == 0) {
-                for (size_t j = 0; j < _configServ[i].getMethod().size(); j++) {
-                    if (_configServ[i].getMethod()[j] == method)
+                for (size_t j = 0; j < _configServ[i].getMethods().size(); j++) {
+                    if (_configServ[i].getMethods()[j] == method)
                         return true;
                 }
             }

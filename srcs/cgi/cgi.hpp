@@ -5,11 +5,12 @@
 #include <unistd.h>
 #include "../socket/Socket.hpp"
 #include "../request/request.hpp"
+#include "../parsing/ServInfo.hpp"
 
 class CGI 
 {
     public:
-        CGI(const std::string& script_path, const std::string& query_string, const Request& request, int port);
+        CGI(const std::string& script_path, const std::string& query_string, const Request& request, std::vector<ServInfo> ports, int client_fd);
         ~CGI();
 
         std::string run_cgi_script();
@@ -18,7 +19,7 @@ class CGI
         const std::string&  _script_path;
         const std::string&  _query_string;
         const Request&      _request;
-        const int           _port;
+        ServInfo            _port_info;
 
 };
 

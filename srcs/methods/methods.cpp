@@ -61,11 +61,12 @@ int handle_post_request(int client_socket, const Request& request)
     std::ofstream file(file_path, std::ios::binary | std::ios::trunc);
 
     if (file) 
-    {
+    {   
         // Write the content from the request body to the file
         file.write(request.get_body().data(), request.get_body().size());
-        if (request.get_body().size() == -1) {
+        if (file.bad()) {
             std::cerr << "Error: could not write data\n";
+            file.close();
             return -1;
         }
         file.close();
@@ -78,6 +79,7 @@ int handle_post_request(int client_socket, const Request& request)
             std::cerr << "Error: could not send data\n";
             return -1;
         }
+        return 0;
     } 
     else // If file not found
     {

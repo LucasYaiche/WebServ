@@ -18,7 +18,7 @@ public:
 
     int getPort(void) const { return _port; };
     std::string getName(void) const { return _name; };
-    std::vector<std::string> getMethod(void) const { return _methods; };
+    std::vector<std::string> getMethods(void) const { return _methods; };
     std::string getRoot(void) const { return _root_dir; };
     bool getAutoindex(void) const { return _autoindex; };
     size_t getBody_size(void) const { return _body_size; };
