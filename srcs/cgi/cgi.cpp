@@ -71,7 +71,7 @@ std::string CGI::run_cgi_script()
 		size_t written = fwrite(_request.get_body().data(), sizeof(char), _request.get_body().size(), pipe);
 		if (written < _request.get_body().size()) 
 		{
-			std::cerr << "Error: writting to file\n";
+			std::cerr << "Error: writing to file\n";
 			exit(1);
     	}
 		if (fflush(pipe) == EOF) { // Ensure that the input data is sent to the script

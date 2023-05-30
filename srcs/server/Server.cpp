@@ -73,7 +73,7 @@ void Server::run()
                             std::cerr << "accept() failed: " << std::endl;
                             continue;
                         }
-                        else 
+                        else
                         {
                             // Set the new client socket to non-blocking mode
                             Socket client_socket;
@@ -158,7 +158,7 @@ void Server::run()
                         // If there is a location in the config file, check fot the allowed method(s)
                         std::string method = request.get_method();
                         bool methodFound = false;
-                        for (size_t i = 0; i < current_port.getMethods().size(); i++) 
+                        for (size_t i = 0; i < current_port.getMethods().size(); i++)
                         {
                             if (current_port.getMethods()[i] == method) {
                                 methodFound = true;
@@ -210,8 +210,10 @@ void Server::run()
                         else 
                         {
                             // Invalid or unsupported method
-                            std::cerr << "error method" << std::endl;
-                            send_error_response(_fds[i].fd, 405, "Method Not Allowed");
+                            std::cerr << "Error: Invalid or unsupported method" << std::endl;
+                            if (send_error_response(_fds[i].fd, 405, "Method Not Allowed") == -1)
+                                std::cerr << "Error: could not send error response\n"
+                                continue;
                         }
                         
                         // Send the data back to the client

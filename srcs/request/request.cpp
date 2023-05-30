@@ -73,7 +73,7 @@ int Request::parse(const char *buffer, size_t length)
 
     // Read body if any
     std::streamsize content_length = 0;
-    if (headers.count("Content-Length")) 
+    if (headers.count("Content-Length"))
     {
         content_length = std::stol(headers["Content-Length"]);
     }
