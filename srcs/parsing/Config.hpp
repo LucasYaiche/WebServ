@@ -49,6 +49,8 @@ public:
                     checkMandatory(current_server);
                     _configServ.push_back(current_server);
                     current_server = ServInfo();
+                    has_name = false;
+                    has_port = false;
                 }
             }
             else if (keyword == "location") {
@@ -183,8 +185,9 @@ public:
             has_name = false;
             has_port = false;
         }
-        if (current_server.getName().empty())
+        if (current_server.getName().empty()) {
             checkMandatory(current_server);
+        }
         if (!current_server.getName().empty()) {
             _totalServs++;
             checkMandatory(current_server);
@@ -202,15 +205,11 @@ public:
         return methods.find(method) != methods.end();
     }
 
-    void checkMandatory(ServInfo& current_server) {
+    void checkMandatory(ServInfo current_server) {
         if (current_server.getName().empty())
             errorExit("Error: no server name");
         if (!current_server.getPort())
             errorExit("Error: no port");
-        if (current_server.getErrors().empty()) {
-            std::cerr << "Error: no error pages found" << std::endl;
-            exit(1);
-        }
         if (current_server.getRoot().empty())
             errorExit("Error: no root directory found");
         if (current_server.getIndex().empty())
