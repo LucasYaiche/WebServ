@@ -212,7 +212,7 @@ void Server::run()
                             // Invalid or unsupported method
                             std::cerr << "Error: Invalid or unsupported method" << std::endl;
                             if (send_error_response(_fds[i].fd, 405, "Method Not Allowed") == -1)
-                                std::cerr << "Error: could not send error response\n"
+                                std::cerr << "Error: could not send error response\n";
                                 continue;
                         }
                         
