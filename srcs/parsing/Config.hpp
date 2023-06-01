@@ -148,8 +148,10 @@ public:
                 current_server.setDirListing(true);
         }
         else if (keyword == "client_max_body_size") {
-            size_t body_size;
+            long int body_size;
             ss >> body_size;
+            if (body_size < 0)
+                errorExit("Error: Body size is not correct");
             current_server.setBody_size(body_size);
         }
         else if (keyword == "error_page") {
