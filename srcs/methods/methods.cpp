@@ -1,8 +1,8 @@
 #include "methods.hpp"
 
-int handle_get_request(int client_socket, const Request& request)
+int handle_get_request(int client_socket, const Request& request, std::string root)
 {
-    const std::string root_directory = "root"; // le root sera different DONC A CHANGER
+    const std::string root_directory = root; // le root sera different DONC A CHANGER
 
     // Create the file path
     std::string file_path = root_directory + request.get_uri();
@@ -47,10 +47,10 @@ int handle_get_request(int client_socket, const Request& request)
     return 0;
 }
 
-int handle_post_request(int client_socket, const Request& request)
+int handle_post_request(int client_socket, const Request& request, std::string root)
 {
     // Set the root directory for serving files
-    const std::string root_directory = "root";
+    const std::string root_directory = root;
 
     // Create the file path
     std::string file_path = root_directory + request.get_uri();
@@ -87,10 +87,10 @@ int handle_post_request(int client_socket, const Request& request)
     }
 }
 
-int handle_delete_request(int client_socket, const Request& request)
+int handle_delete_request(int client_socket, const Request& request, std::string root)
 {
     // Set the root directory for serving files
-    const std::string root_directory = "root";
+    const std::string root_directory = root;
 
     // Create the file path
     std::string file_path = root_directory + request.get_uri();
@@ -120,8 +120,8 @@ int send_error_response(int client_socket, int status_code, const std::string& s
     std::string response_header = "HTTP/1.1 " + std::to_string(status_code) + " " + status_message + "\r\n";
     response_header += "Content-Type: text/html\r\n";
 
-    // Common styles for all error pages
-    std::string style = "<style>"
+    // Default styles for all error pages
+    std::string default_style = "<style>"
                             "body {"
                                 "font-family: Arial, sans-serif;"
                                 "margin: 0;"
@@ -137,30 +137,53 @@ int send_error_response(int client_socket, int status_code, const std::string& s
                             "}"
                             ".error {"
                                 "font-size: 72px;"
-                                "color: #154a6e;"
                             "}"
                             ".message {"
                                 "font-size: 24px;"
-                                "color: #154a6e;"
                             "}"
                         "</style>";
 
+    std::string error_color;
+    std::string message_color;
+
     switch (status_code) 
     {
+        case 400:
+            error_color = "#ff0000";  // Red
+            message_color = "#ff0000";  // Red
+            // Custom error page for 400
+            error_page = "<html><head><title>Error 400</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
+            error_page += "<body><div class='container'><h1 class='error'>Error 400</h1><p class='message'>The Request cannot be processed by the server</p></div></body></html>";
+            break;
+
         case 404:
+            error_color = "#ffa500";  // Orange
+            message_color = "#ffa500";  // Orange
             // Custom error page for 404
-            error_page = "<html><head><title>Error 404</title>" + style + "</head>";
+            error_page = "<html><head><title>Error 404</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
             error_page += "<body><div class='container'><h1 class='error'>Error 404</h1><p class='message'>The page you requested could not be found.</p></div></body></html>";
             break;
-        
+
         case 405:
+            error_color = "#eae22f";  // Yellow
+            message_color = "#eae22f";  // Yellow
             // Custom error page for 405
-            error_page = "<html><head><title>Error 405</title>" + style + "</head>";
+            error_page = "<html><head><title>Error 405</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
             error_page += "<body><div class='container'><h1 class='error'>Error 405</h1><p class='message'>Method Not Allowed.</p></div></body></html>";
             break;
 
+        case 500:
+            error_color = "#008000";  // Green
+            message_color = "#008000";  // Green
+            // Custom error page for 500
+            error_page = "<html><head><title>Error 500</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
+            error_page += "<body><div class='container'><h1 class='error'>Error 500</h1><p class='message'>Internal Server Error.</p></div></body></html>";
+            break;
+
         default:
-            error_page = "<html><head><title>Error " + std::to_string(status_code) + "</title>" + style + "</head>";
+            error_color = "#154a6e";  // Default color
+            message_color = "#154a6e";  // Default color
+            error_page = "<html><head><title>Error " + std::to_string(status_code) + "</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
             error_page += "<body><div class='container'><h1 class='error'>Error " + std::to_string(status_code) + "</h1><p class='message'>" + status_message + "</p></div></body></html>";
             break;
     }

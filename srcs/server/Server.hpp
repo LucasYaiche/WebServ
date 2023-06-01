@@ -19,15 +19,18 @@ class Server
         Server(std::vector<ServInfo> ports);
         ~Server();
 
-        void	                run();
-        int                     handle_cgi_request(int client_fd, const Request& request, std::vector<ServInfo> ports);
+        void	               		run();
+        void                    	close_sockets();
+        std::pair<bool, Location>   check_location(ServInfo& current_port, const std::string& request_location);
+		bool 						is_method_valid(std::pair<bool, Location> result, const std::string& method);
+        int                     	handle_cgi_request(int client_fd, const Request& request, std::vector<ServInfo> ports);
 
 
 	private:
 
-		std::vector<Socket>     _server_sockets;
-        std::vector<pollfd>     _fds;
-        std::vector<ServInfo>   _ports;
+		std::vector<Socket>     	_server_sockets;
+        std::vector<pollfd>     	_fds;
+        std::vector<ServInfo>   	_ports;
 };
 
 #endif

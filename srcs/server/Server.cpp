@@ -32,6 +32,52 @@ Server::Server(std::vector<ServInfo> ports) : _ports(ports)
 
 Server::~Server() {}
 
+void Server::close_sockets() 
+{
+        for (size_t i = 0; i < _server_sockets.size(); ++i) {
+            _server_sockets[i].close();
+        }
+        for (size_t i = 0; i < _fds.size(); ++i) {
+            Socket client_socket;
+            client_socket.set_socket_fd(_fds[i].fd);
+            client_socket.close();
+        }
+    }
+
+std::pair<bool, Location>   Server::check_location(ServInfo& current_port, const std::string& request_location) 
+{
+    for (size_t i = 0; i < current_port.getLocation().size(); i++) {
+        if (current_port.getLocation()[i].getPath() == request_location) {
+            return std::make_pair(true, current_port.getLocation()[i]);
+        }
+    }
+    // Return a default Location if not found
+    return std::make_pair(false, Location());
+}
+
+bool Server::is_method_valid(std::pair<bool, Location> result, const std::string& method) 
+{
+    if (method == "POST" || method == "GET" || method == "DELETE")
+    {
+        return true;
+    }
+    
+    if(result.first)
+    {
+        Location port_location = result.second;
+
+        for (size_t i = 0; i < port_location.getMethods().size(); i++) 
+        {
+            if (port_location.getMethods()[i] == method) 
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
 void Server::run() 
 {
     while (true) 
@@ -40,6 +86,11 @@ void Server::run()
 
         if (poll_result <= 0) 
         {
+            if (send_error_response(_fds[0].fd, 500, "Internal Server Error") == -1) 
+            {
+                std::cerr << "Error: could not send error response\n";
+            }
+            close_sockets();
             if (!poll_result)
             {
                 std::cerr << "poll time out" << std::endl;
@@ -49,7 +100,7 @@ void Server::run()
             {
                 // Handle other poll() errors.
                 std::cerr << "poll() failed: " << std::endl;
-                break;
+                continue;
             }
         }
 
@@ -71,6 +122,10 @@ void Server::run()
                         if (client_socket_fd == -1)
                         {
                             std::cerr << "accept() failed: " << std::endl;
+                            if (send_error_response(_fds[i].fd, 400, "Bad Request") == -1)
+                            {                                
+                                std::cerr << "Error: could not send error response\n";
+                            }
                             continue;
                         }
                         else
@@ -84,6 +139,10 @@ void Server::run()
                             if (setsockopt(client_socket.get_fd(), SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)) == -1)
                             {
                                 std::cerr << "setsockopt socket error" << std::endl;
+                                if (send_error_response(_fds[i].fd, 500, "Internal Server Error") == -1)
+                                {                                
+                                    std::cerr << "Error: could not send error response\n";
+                                }
                                 continue;
                             }
 
@@ -114,14 +173,18 @@ void Server::run()
                             break;
                         }
                     }
-                    const size_t buffer_size = current_port.getBody_size(); // 5 MB
-                    char* buffer = new char[buffer_size];
+                    const size_t buffer_size = current_port.getBody_size();
+                    std::unique_ptr<char[]> buffer(new char[buffer_size]);
 
                     // Receive data
-                    bytes_received = client_socket.recv(buffer, buffer_size - 1);
+                    bytes_received = client_socket.recv(buffer.get(), buffer_size);
 
                     if (bytes_received <= 0) 
                     {
+                        if (send_error_response(_fds[i].fd, 400, "Bad Request") == -1)
+                        {                                
+                            std::cerr << "Error: could not send error response\n";
+                        }
                         // The client closed the connection or there was an error
                         client_socket.close();
                         _fds.erase(_fds.begin() + i);
@@ -133,79 +196,57 @@ void Server::run()
                     {
                         // Process the data (in this case, just echo it back to the client)
                         Request request;
-                        if (request.parse(buffer, bytes_received) == -1)
+                        if (request.parse(buffer.get(), bytes_received) == -1)
+                        {
+                            // Parsing failed. Send a 400 Bad Request error to the client
+                            if (send_error_response(_fds[i].fd, 400, "Bad Request") == -1)
+                            {                                
+                                std::cerr << "Error: could not send error response\n";
+                            }
+                            
+                            // Parsing failed. Close the client socket and remove it from _fds vector
+                            client_socket.close();
+                            _fds.erase(_fds.begin() + i);
+                            i--; // Decrement the index to account for the removed element
                             continue;
+                        }
                         
                         // SET the requested location
                         std::string request_location = request.get_uri();
 
+                        // Set the default location for root
+                        std::string root = current_port.getRoot();
 
                         // Find the Location requested in the data set of the port
-                        bool        location_check = false;
-                        Location    port_location;
-                        for(size_t i=0; i < current_port.getLocation().size(); i++)
-                        {
-                            if(current_port.getLocation()[i].getPath() == request_location)
-                            {
-                                port_location = current_port.getLocation()[i];
-                                location_check = true;
-                                break;
-                            }
-                        }
-
-
+                        std::pair<bool, Location>     result = check_location(current_port, request.get_uri());
 
                         // If there is a location in the config file, check fot the allowed method(s)
                         std::string method = request.get_method();
-                        bool methodFound = false;
-                        for (size_t i = 0; i < current_port.getMethods().size(); i++)
-                        {
-                            if (current_port.getMethods()[i] == method) {
-                                methodFound = true;
-                                break;
-                            }
-                        }
-                        if (!methodFound) {
-                            method = "";
-                        }
-
-                        // For the port_location
-                        if(location_check) 
-                        {
-                            methodFound = false;
-                            for (size_t i = 0; i < port_location.getMethods().size(); i++) 
-                            {
-                                if (port_location.getMethods()[i] == method) {
-                                    methodFound = true;
-                                    break;
-                                }
-                            }
-                            if (!methodFound) 
-                            {
-                                method = "";
-                            }
-                        }
+                        bool methodValid = is_method_valid(result, request.get_method());
 
                         // Process the parsed request
-                        if (request.is_cgi() && method == "POST")
+                        if (request.is_cgi() && methodValid)
                         {
                             if (handle_cgi_request(_fds[i].fd, request, _ports) == -1)
                                 continue;
                         }
-                        else if (method == "GET") 
-                        {
-                            if (handle_get_request(_fds[i].fd, request) == -1)
-                                continue;
-                        }
-                        else if (method == "POST") 
-                        {
-                            if (handle_post_request(_fds[i].fd, request) == -1)
-                                continue;
-                        }
-                        else if (method == "DELETE") 
-                        {
-                            if (handle_delete_request(_fds[i].fd, request) == -1)
-                                continue;
+                        else if(methodValid)
+                        {    
+                            if (method == "GET") 
+                            {
+                                if (handle_get_request(_fds[i].fd, request, root) == -1)
+                                    continue;
+                            }
+                            else if (method == "POST") 
+                            {
+                                if (handle_post_request(_fds[i].fd, request, root) == -1)
+                                    continue;
+                            }
+                            else if (method == "DELETE") 
+                            {
+                                if (handle_delete_request(_fds[i].fd, request, root) == -1)
+                                    continue;
+                            }
                         }
                         else 
                         {
@@ -217,7 +258,7 @@ void Server::run()
                         }
                         
                         // Send the data back to the client
-                        if (client_socket.send(buffer, bytes_received) == -1) {
+                        if (client_socket.send(buffer.get(), bytes_received) == -1) {
                             std::cerr << "Error: could not send data\n";
                             continue;
                         }
@@ -227,10 +268,7 @@ void Server::run()
         }
         usleep(5000);
     }
-    for(size_t i = 0; i < _server_sockets.size(); i++)
-    {
-        _server_sockets[i].close();
-    }
+    close_sockets();
 }
 
 int Server::handle_cgi_request(int client_fd, const Request& request, std::vector<ServInfo> ports)

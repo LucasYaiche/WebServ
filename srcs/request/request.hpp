@@ -16,7 +16,7 @@ class Request
         Request();
         Request(const std::string& request_str);
         
-        int                                 parse(const char *buffer, size_t length);
+        int                                 parse(char *buffer, size_t length);
         const                               std::string& get_method() const{return this->method;};
         const                               std::string& get_uri() const{return this->uri;};
         const                               std::string& get_http_version() const{return this->http_version;};

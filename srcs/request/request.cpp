@@ -22,18 +22,18 @@ Request::Request(const std::string& request_str)
             headers[key] = value;
         }
     }
-
-    // // Read body if any
-    // if (request_stream) 
-    // {
-    //     std::ostringstream body_stream;
-    //     body_stream << request_stream.rdbuf();
-    //     body = body_stream.str();
-    // }
 }
 
-int Request::parse(const char *buffer, size_t length)
+int Request::parse(char *buffer, size_t length)
 {
+    // Check for end of headers (double CRLF)
+    const char* end_headers = "\r\n\r\n";
+    if (std::search(buffer, buffer + length, end_headers, end_headers + 4) == buffer + length)
+    {
+        std::cerr << "Incomplete HTTP request\n";
+        return -1;  // Incomplete request
+    }
+    
     std::istringstream request_stream(std::string(buffer, length));
     std::string line;
 
@@ -73,7 +73,7 @@ int Request::parse(const char *buffer, size_t length)
 
     // Read body if any
     std::streamsize content_length = 0;
-    if (headers.count("Content-Length"))
+    if (headers.count("Content-Length")) 
     {
         content_length = std::stol(headers["Content-Length"]);
     }

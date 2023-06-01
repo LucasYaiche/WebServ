@@ -46,7 +46,7 @@ bool    Socket::listen(int backlog)
 {
     if (::listen(_socket_fd, backlog) == -1)
     {
-        std::cout << "listen error" << std::endl;
+        std::cerr << "listen error\n";
         return 0;
     }
     return 1;
