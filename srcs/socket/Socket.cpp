@@ -9,14 +9,14 @@ void Socket::create_socket()
     if ((_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
     {
         std::cerr << "could not create socket\n";
-        exit(1);
+        throw std::runtime_error("Failed to create the socket");
     }
 
     int n = 1;
     if (setsockopt(_socket_fd, SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)))
     {
         std::cerr << "setsockopt socket error" << std::endl;
-        exit(1);
+        throw std::runtime_error("Failed to use setsockopt with the socket");
     }
 }
 

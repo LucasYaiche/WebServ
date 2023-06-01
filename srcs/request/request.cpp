@@ -86,7 +86,8 @@ int Request::parse(char *buffer, size_t length)
    return 0;
 }
 
-bool Request::is_cgi() const {
+bool Request::is_cgi() const 
+{
     std::string path = get_uri();
     size_t pos = path.rfind(".");
     if (pos == std::string::npos) 
