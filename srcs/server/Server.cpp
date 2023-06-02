@@ -81,6 +81,14 @@ bool Server::is_method_valid(std::pair<bool, Location> result, const std::string
     return false;
 }
 
+void    Server::delete_socket(Socket client_socket, size_t i)
+{
+    client_socket.close();
+    _fds.erase(_fds.begin() + i);
+    i--;
+    delete[] _buffer;
+}
+
 
 void Server::run() 
 {
@@ -157,36 +165,30 @@ void Server::run()
                         }
                     }
 
-                    const size_t buffer_size = current_port.getBody_size();
-                    char* buffer = new char[buffer_size];
+                    _buffer_size = current_port.getBody_size();
+                    _buffer = new char[_buffer_size];
 
-                    if (!buffer)
+                    if (!_buffer)
                     {
-                        client_socket.close();
-                        _fds.erase(_fds.begin() + i);
-                        i--;
-                        delete[] buffer;
+                        send_error_response(client_socket.get_fd(), 500, "Internal Server Error");
+                        delete_socket(client_socket, i);
                         continue;
                     }
 
-                    bytes_received = client_socket.recv(buffer, buffer_size);
+                    bytes_received = client_socket.recv(_buffer, _buffer_size);
 
                     if (bytes_received <= 0) 
                     {
-                        client_socket.close();
-                        _fds.erase(_fds.begin() + i);
-                        i--;
-                        delete[] buffer;
+                        send_error_response(client_socket.get_fd(), 500, "Internal Server Error");
+                        delete_socket(client_socket, i);
                         continue;
                     }
 
                     Request request;
-                    if (request.parse(buffer, bytes_received) == -1)
+                    if (request.parse(_buffer, bytes_received) == -1)
                     {
-                        client_socket.close();
-                        _fds.erase(_fds.begin() + i);
-                        i--;
-                        delete[] buffer;
+                        send_error_response(client_socket.get_fd(), 400, "Bad Request");
+                        delete_socket(client_socket, i);
                         continue;
                     }
                         
@@ -199,7 +201,7 @@ void Server::run()
                     {
                         if (handle_cgi_request(_fds[i].fd, request, _ports) == -1)
                         {
-                            delete[] buffer;
+                            delete[] _buffer;
                             continue;
                         }
                     }
@@ -209,7 +211,7 @@ void Server::run()
                         {
                             if (handle_get_request(_fds[i].fd, request, current_port.getRoot()) == -1)
                             {
-                                delete[] buffer;
+                                delete[] _buffer;
                                 continue;
                             }
                         }
@@ -217,7 +219,7 @@ void Server::run()
                         {
                             if (handle_post_request(_fds[i].fd, request, current_port.getRoot()) == -1)
                             {
-                                delete[] buffer;
+                                delete[] _buffer;
                                 continue;
                             }
                         }
@@ -225,23 +227,24 @@ void Server::run()
                         {
                             if (handle_delete_request(_fds[i].fd, request, current_port.getRoot()) == -1)
                             {
-                                delete[] buffer;
+                                delete[] _buffer;
                                 continue;
                             }
                         }
                     }
                     else 
                     {
-                        delete[] buffer;
+                        send_error_response(client_socket.get_fd(), 405, "Method not allowed");
+                        delete[] _buffer;
                         continue;
                     }
 
-                    if (client_socket.send(buffer, bytes_received) == -1) {
-                        delete[] buffer;
+                    if (client_socket.send(_buffer, bytes_received) == -1) {
+                        delete[] _buffer;
                         continue;
                     }
 
-                    delete[] buffer;
+                    delete[] _buffer;
                 }
             }
             usleep(5000);
