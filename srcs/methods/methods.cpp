@@ -1,16 +1,69 @@
 #include "methods.hpp"
 
-int handle_get_request(int client_socket, const Request& request, std::string root)
-{
-    const std::string root_directory = root; // le root sera different DONC A CHANGER
+// This function is used to send the content of a directory as an HTML list.
+int handle_directory_request(int client_socket, const std::string& directory_path) {
+    std::string response_body = "<html><body><ul>";
 
-    // Create the file path
-    std::string file_path = root_directory + request.get_uri();
-
-    // Default to "index.html" if the requested URI is a directory
-    if (file_path.back() == '/') 
+    DIR* dirp = opendir(directory_path.c_str());
+    if (dirp == NULL) 
     {
-        file_path += "index.html";
+        std::cerr << "Error opening directory: " << strerror(errno) << std::endl;
+        return -1;
+    }
+
+    struct dirent* dp;
+    while ((dp = readdir(dirp)) != NULL) {
+        std::string filename = dp->d_name;
+        response_body += "<li><a href=\"" + filename + "\">" + filename + "</a></li>";
+    }
+
+    closedir(dirp);
+
+    response_body += "</ul></body></html>";
+
+    // Send the HTTP response header
+    std::string response_header = "HTTP/1.1 200 OK\r\n";
+    response_header += "Content-Type: text/html\r\n";
+    response_header += "Content-Length: " + std::to_string(response_body.size()) + "\r\n";
+    response_header += "\r\n";
+
+    if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
+        std::cerr << "Error: could not send data\n";
+        return -1;
+    }
+
+    // Send the directory listing content
+    if (send(client_socket, response_body.data(), response_body.size(), 0) == -1) {
+        std::cerr << "Error: could not send data\n";
+        return -1;
+    }
+    
+    return 0;
+}
+
+int handle_get_request(int client_socket, const Request& request, std::string root, ServInfo port)
+{
+    // Create the file path
+    std::string file_path = root + request.get_uri();
+
+    struct stat path_stat;
+    stat(file_path.c_str(), &path_stat);
+    int is_directory = S_ISDIR(path_stat.st_mode);
+
+    // If the requested URI is a directory
+    if (is_directory) 
+    {
+        // Check if directory listing is enabled
+        if (port.getDirListing())
+        {
+            // Handle directory request
+            return handle_directory_request(client_socket, file_path);
+        }
+        else
+        {
+            // Default to "index.html"
+            file_path = port.getIndex();
+        }
     }
 
     // Read the file content
@@ -47,8 +100,9 @@ int handle_get_request(int client_socket, const Request& request, std::string ro
     return 0;
 }
 
-int handle_post_request(int client_socket, const Request& request, std::string root)
+int handle_post_request(int client_socket, const Request& request, std::string root, ServInfo port)
 {
+    (void)port;
     // Set the root directory for serving files
     const std::string root_directory = root;
 
@@ -87,8 +141,9 @@ int handle_post_request(int client_socket, const Request& request, std::string r
     }
 }
 
-int handle_delete_request(int client_socket, const Request& request, std::string root)
+int handle_delete_request(int client_socket, const Request& request, std::string root, ServInfo port)
 {
+    (void)port;
     // Set the root directory for serving files
     const std::string root_directory = root;
 

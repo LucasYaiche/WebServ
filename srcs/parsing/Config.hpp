@@ -150,7 +150,7 @@ public:
         else if (keyword == "client_max_body_size") {
             long int body_size;
             ss >> body_size;
-            if (body_size <= 0)
+            if (body_size <= 0 || body_size > 100000000) // Max 100 MB
                 errorExit("Error: Body size is not correct");
             current_server.setBody_size(body_size);
         }

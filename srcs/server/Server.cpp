@@ -1,7 +1,7 @@
 #include "Server.hpp"
 
 
-Server::Server(std::vector<ServInfo> ports) : _ports(ports)
+Server::Server(std::vector<ServInfo> ports) : _ports(ports), _buffer_size(0)
 {   
     for(size_t i=0; i < ports.size(); i++)
     {
@@ -15,7 +15,6 @@ Server::Server(std::vector<ServInfo> ports) : _ports(ports)
 
         if (!socket.listen(42)) // A voir si on peut pas le preset dans les fichiers de config
         {
-            std::cout << "listen error" << std::endl;
             throw std::runtime_error("Failed to listen on server socket.");
         }
 
@@ -27,10 +26,20 @@ Server::Server(std::vector<ServInfo> ports) : _ports(ports)
         server_pollfd.events = POLLIN;
         server_pollfd.revents = 0;
         _fds.push_back(server_pollfd);
+
+
+        //Size of buffer
+        if (ports[i].getBody_size() > _buffer_size) {
+            _buffer_size = ports[i].getBody_size();
+        }
     }
+    _buffer = new char[_buffer_size];
 }
 
-Server::~Server() {}
+Server::~Server() 
+{
+    delete[] _buffer;
+}
 
 void Server::close_sockets() 
 {
@@ -46,7 +55,7 @@ void Server::close_sockets()
                 client_socket.close();
             }
         }
-    }
+}
 
 std::pair<bool, Location>   Server::check_location(ServInfo& current_port, const std::string& request_location) 
 {
@@ -81,12 +90,11 @@ bool Server::is_method_valid(std::pair<bool, Location> result, const std::string
     return false;
 }
 
-void    Server::delete_socket(Socket client_socket, size_t i)
+void    Server::delete_socket(Socket client_socket, size_t &i)
 {
     client_socket.close();
     _fds.erase(_fds.begin() + i);
     i--;
-    delete[] _buffer;
 }
 
 
@@ -165,9 +173,6 @@ void Server::run()
                         }
                     }
 
-                    _buffer_size = current_port.getBody_size();
-                    _buffer = new char[_buffer_size];
-
                     if (!_buffer)
                     {
                         send_error_response(client_socket.get_fd(), 500, "Internal Server Error");
@@ -177,9 +182,13 @@ void Server::run()
 
                     bytes_received = client_socket.recv(_buffer, _buffer_size);
 
-                    if (bytes_received <= 0) 
-                    {
-                        send_error_response(client_socket.get_fd(), 500, "Internal Server Error");
+                    if (bytes_received < 0) {
+                        // recv() would block, treat as temporary error and continue to next iteration
+                        // no need to delete socket in this case because of the non blocking mode
+                        continue;
+                    }
+                    else if (bytes_received == 0) {
+                        // The client has closed the connection
                         delete_socket(client_socket, i);
                         continue;
                     }
@@ -201,7 +210,6 @@ void Server::run()
                     {
                         if (handle_cgi_request(_fds[i].fd, request, _ports) == -1)
                         {
-                            delete[] _buffer;
                             continue;
                         }
                     }
@@ -209,25 +217,22 @@ void Server::run()
                     {    
                         if (method == "GET") 
                         {
-                            if (handle_get_request(_fds[i].fd, request, current_port.getRoot()) == -1)
+                            if (handle_get_request(_fds[i].fd, request, current_port.getRoot(), current_port) == -1)
                             {
-                                delete[] _buffer;
                                 continue;
                             }
                         }
                         else if (method == "POST") 
                         {
-                            if (handle_post_request(_fds[i].fd, request, current_port.getRoot()) == -1)
+                            if (handle_post_request(_fds[i].fd, request, current_port.getRoot(), current_port) == -1)
                             {
-                                delete[] _buffer;
                                 continue;
                             }
                         }
                         else if (method == "DELETE") 
                         {
-                            if (handle_delete_request(_fds[i].fd, request, current_port.getRoot()) == -1)
+                            if (handle_delete_request(_fds[i].fd, request, current_port.getRoot(), current_port) == -1)
                             {
-                                delete[] _buffer;
                                 continue;
                             }
                         }
@@ -235,19 +240,18 @@ void Server::run()
                     else 
                     {
                         send_error_response(client_socket.get_fd(), 405, "Method not allowed");
-                        delete[] _buffer;
+
                         continue;
                     }
 
                     if (client_socket.send(_buffer, bytes_received) == -1) {
-                        delete[] _buffer;
+
                         continue;
                     }
 
-                    delete[] _buffer;
                 }
             }
-            usleep(5000);
+            usleep(4000);
         }
     }
     close_sockets();
@@ -270,7 +274,8 @@ int Server::handle_cgi_request(int client_fd, const Request& request, std::vecto
 
     // Send the script output back to the client
     client_socket.set_non_blocking();
-    if (client_socket.send(script_output.c_str(), script_output.size()) == -1) {
+    if (client_socket.send(script_output.c_str(), script_output.size()) == -1) 
+    {
         std::cerr << "Error: could not send data\n";
         return -1;
     }

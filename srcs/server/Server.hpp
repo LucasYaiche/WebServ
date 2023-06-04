@@ -24,7 +24,7 @@ class Server
         std::pair<bool, Location>   check_location(ServInfo& current_port, const std::string& request_location);
 		bool 						is_method_valid(std::pair<bool, Location> result, const std::string& method);
         int                     	handle_cgi_request(int client_fd, const Request& request, std::vector<ServInfo> ports);
-		void    					delete_socket(Socket client_socket, size_t i);
+		void    					delete_socket(Socket client_socket, size_t &i);
 
 
 	private:
