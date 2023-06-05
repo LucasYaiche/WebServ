@@ -167,13 +167,13 @@ public:
             current_server.setBody_size(body_size);
         }
         else if (keyword == "error_page") {
-            int code;
             std::string path;
             struct stat info;
-            ss >> code >> path;
+            ss >> path;
             if (stat(path.c_str(), &info) != 0)
                 errorExit("Error: error_page path does not exist");
-            current_server.setErrors(code, path);
+            current_server.setErrors(path);
+            std::cout << current_server.getErrors() << std::endl;
         }
         else if (keyword == "redir") {
             std::string redir;
