@@ -1,5 +1,16 @@
 #include "methods.hpp"
 
+std::pair<bool, Location>   check_location(ServInfo& current_port, const std::string& request_location) 
+{
+    for (size_t i = 0; i < current_port.getLocation().size(); i++) {
+        if (current_port.getLocation()[i].getPath() == request_location) {
+            return std::make_pair(true, current_port.getLocation()[i]);
+        }
+    }
+    // Return a default Location if not found
+    return std::make_pair(false, Location());
+}
+
 // This function is used to send the content of a directory as an HTML list.
 int handle_directory_request(int client_socket, const std::string& directory_path) {
     std::string response_body = "<html><body><ul>";
@@ -41,8 +52,13 @@ int handle_directory_request(int client_socket, const std::string& directory_pat
     return 0;
 }
 
-int handle_get_request(int client_socket, const Request& request, std::string root, ServInfo port)
+int handle_get_request(int client_socket, const Request& request, ServInfo port)
 {
+    std::string root = port.getRoot();
+    std::pair<bool, Location> location_check = check_location(port, request.get_uri());
+    if (location_check.first)
+        root = location_check.second.getRoot();
+
     // Create the file path
     std::string file_path = root + request.get_uri();
 
@@ -53,18 +69,22 @@ int handle_get_request(int client_socket, const Request& request, std::string ro
     // If the requested URI is a directory
     if (is_directory) 
     {
+        bool    dir_listing = port.getDirListing();
+        if (location_check.first)
+            dir_listing = location_check.second.getDirListing();
         // Check if directory listing is enabled
-        if (port.getDirListing())
+        if (dir_listing && file_path != port.getRoot() + "/")
         {
             // Handle directory request
             return handle_directory_request(client_socket, file_path);
         }
-        else
+        else if (file_path == port.getRoot() + "/")
         {
             // Default to "index.html"
-            file_path = port.getIndex();
+            file_path += port.getIndex();
         }
     }
+
 
     // Read the file content
     std::ifstream file(file_path, std::ios::binary);
@@ -100,9 +120,13 @@ int handle_get_request(int client_socket, const Request& request, std::string ro
     return 0;
 }
 
-int handle_post_request(int client_socket, const Request& request, std::string root, ServInfo port)
+int handle_post_request(int client_socket, const Request& request, ServInfo port)
 {
-    (void)port;
+    std::string root = port.getRoot();
+    std::pair<bool, Location> location_check = check_location(port, request.get_uri());
+    if (location_check.first)
+        root = location_check.second.getRoot();
+
     // Set the root directory for serving files
     const std::string root_directory = root;
 
@@ -141,9 +165,13 @@ int handle_post_request(int client_socket, const Request& request, std::string r
     }
 }
 
-int handle_delete_request(int client_socket, const Request& request, std::string root, ServInfo port)
+int handle_delete_request(int client_socket, const Request& request, ServInfo port)
 {
-    (void)port;
+    std::string root = port.getRoot();
+    std::pair<bool, Location> location_check = check_location(port, request.get_uri());
+    if (location_check.first)
+        root = location_check.second.getRoot();
+    
     // Set the root directory for serving files
     const std::string root_directory = root;
 
@@ -206,42 +234,28 @@ int send_error_response(int client_socket, int status_code, const std::string& s
         case 400:
             error_color = "#ff0000";  // Red
             message_color = "#ff0000";  // Red
-            // Custom error page for 400
-            error_page = "<html><head><title>Error 400</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
-            error_page += "<body><div class='container'><h1 class='error'>Error 400</h1><p class='message'>The Request cannot be processed by the server</p></div></body></html>";
             break;
-
         case 404:
             error_color = "#ffa500";  // Orange
             message_color = "#ffa500";  // Orange
-            // Custom error page for 404
-            error_page = "<html><head><title>Error 404</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
-            error_page += "<body><div class='container'><h1 class='error'>Error 404</h1><p class='message'>The page you requested could not be found.</p></div></body></html>";
             break;
-
         case 405:
             error_color = "#eae22f";  // Yellow
             message_color = "#eae22f";  // Yellow
-            // Custom error page for 405
-            error_page = "<html><head><title>Error 405</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
-            error_page += "<body><div class='container'><h1 class='error'>Error 405</h1><p class='message'>Method Not Allowed.</p></div></body></html>";
             break;
-
         case 500:
             error_color = "#008000";  // Green
             message_color = "#008000";  // Green
-            // Custom error page for 500
-            error_page = "<html><head><title>Error 500</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
-            error_page += "<body><div class='container'><h1 class='error'>Error 500</h1><p class='message'>Internal Server Error.</p></div></body></html>";
             break;
-
         default:
             error_color = "#154a6e";  // Default color
             message_color = "#154a6e";  // Default color
-            error_page = "<html><head><title>Error " + std::to_string(status_code) + "</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
-            error_page += "<body><div class='container'><h1 class='error'>Error " + std::to_string(status_code) + "</h1><p class='message'>" + status_message + "</p></div></body></html>";
             break;
     }
+
+    // The error page now uses the status_message parameter
+    error_page = "<html><head><title>Error " + std::to_string(status_code) + "</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
+    error_page += "<body><div class='container'><h1 class='error'>Error " + std::to_string(status_code) + "</h1><p class='message'>" + status_message + "</p></div></body></html>";
 
     response_header += "Content-Length: " + std::to_string(error_page.size()) + "\r\n";
     response_header += "\r\n";

@@ -25,7 +25,7 @@ CGI::CGI(const std::string& script_path, const std::string& query_string, const 
 
 CGI::~CGI() {}
 
-std::string CGI::run_cgi_script()
+int	CGI::run_cgi_script(std::string& response)
 {
 	std::string base_path = _port_info.getRoot();
 	std::string full_script_path = base_path + _script_path;
@@ -33,28 +33,37 @@ std::string CGI::run_cgi_script()
 	// Ensure the script file exists and is executable
 	if (access(full_script_path.c_str(), X_OK) == -1) 
 	{
-		throw std::runtime_error("CGI script not found or not executable: " + full_script_path);
+		std::cerr << "CGI script not found or not executable: " << full_script_path << "\n";
+		return -1;
 	}
 	// Set up the environment for the CGI script
 	if (setenv("QUERY_STRING", _query_string.c_str(), 1) == -1) 
 	{
-		throw std::runtime_error("Failed to set QUERY_STRING environment variable");
+		std::cerr << "Failed to set QUERY_STRING environment variable\n";
+		return -1;
 	}
 	if (setenv("REQUEST_METHOD", _request.get_method().c_str(), 1) == -1) 
 	{
-		throw std::runtime_error("Failed to set REQUEST_METHOD environment variable");
+		std::cerr << "Failed to set REQUEST_METHOD environment variable\n";
+		return -1;
 	}
-	if (setenv("CONTENT_TYPE", _request.get_headers().at("Content-Type").c_str(), 1) == -1) 
-	{
-		throw std::runtime_error("Failed to set CONTENT_TYPE environment variable");
+	std::map<std::string, std::string>::const_iterator it = _request.get_headers().find("Content-Type");
+	if (it != _request.get_headers().end()) {
+		if (setenv("CONTENT_TYPE", it->second.c_str(), 1) == -1)
+		{
+			std::cerr << "Failed to set CONTENT_TYPE environment variable\n";
+			return -1;
+		}
 	}
 	if (setenv("CONTENT_LENGTH", std::to_string(_request.get_body().size()).c_str(), 1) == -1) 
 	{
-		throw std::runtime_error("Failed to set CONTENT_LENGTH environment variable");
+		std::cerr << "Failed to set CONTENT_LENGTH environment variable\n";
+		return -1;
 	}
 	if (setenv("SERVER_PORT", std::to_string(_port_info.getPort()).c_str(), 1) == -1)
 	{
-		throw std::runtime_error("Failed to set SERVER_PORT environment variable");
+		std::cerr << "Failed to set SERVER_PORT environment variable\n";
+		return -1;
 	}
 
 	// Execute the CGI script and capture its output
@@ -62,7 +71,8 @@ std::string CGI::run_cgi_script()
 	FILE* pipe = popen(command.c_str(), "r+");
 	if (!pipe) 
 	{
-		throw std::runtime_error("Failed to execute CGI script: " + full_script_path);
+		std::cerr << "Failed to execute CGI script: " << full_script_path << "\n";
+		return -1;
 	}
 
 	// If this is a POST request, write the request body to the CGI script's standard input
@@ -72,13 +82,13 @@ std::string CGI::run_cgi_script()
 		if (written < _request.get_body().size()) 
 		{
 			std::cerr << "Error: writing to file\n";
-			exit(1);
-    	}
+			return -1;
+		}
 		if (fflush(pipe) == EOF) { // Ensure that the input data is sent to the script
             std::cerr << "Error: could not fflush\n";
-            exit(1);
+            return -1;
         }
-    }
+	}
 
 	// Read the output from the process
 	char buffer[5242880];
@@ -92,19 +102,41 @@ std::string CGI::run_cgi_script()
 	int status = pclose(pipe);
 	if (status == -1) 
 	{
-		throw std::runtime_error("Failed to close CGI script process");
+		std::cerr << "Failed to close CGI script process\n";
+		return -1;
 	}
 	else if (WEXITSTATUS(status) != 0) 
 	{
-		throw std::runtime_error("CGI script exited with non-zero status: " + full_script_path);
+		std::cerr << "CGI script exited with non-zero status: " << full_script_path << "\n";
+		return -1;
 	}
 
 	// Clear the environment variables
-	unsetenv("QUERY_STRING");
-	unsetenv("REQUEST_METHOD");
-	unsetenv("CONTENT_TYPE");
-	unsetenv("CONTENT_LENGTH");
-	unsetenv("SERVER_PORT");
+	if (unsetenv("QUERY_STRING") == -1) 
+	{
+		std::cerr << "Failed to unset QUERY_STRING environment variable\n";
+		return -1;
+	}
+	if (unsetenv("REQUEST_METHOD") == -1) 
+	{
+		std::cerr << "Failed to unset REQUEST_METHOD environment variable\n";
+		return -1;
+	}
+	if (unsetenv("CONTENT_TYPE") == -1)
+	{
+		std::cerr << "Failed to unset CONTENT_TYPE environment variable\n";
+		return -1;
+	}
+	if (unsetenv("CONTENT_LENGTH") == -1) 
+	{
+		std::cerr << "Failed to unset CONTENT_LENGTH environment variable\n";
+		return -1;
+	}
+	if (unsetenv("SERVER_PORT") == -1)
+	{
+		std::cerr << "Failed to unset SERVER_PORT environment variable\n";
+		return -1;
+	}
 
 	// Parse the headers and content from the CGI script's output
 	std::string headers;
@@ -146,14 +178,14 @@ std::string CGI::run_cgi_script()
 	}
 
 	// Construct the HTTP response
-	std::string response = "HTTP/1.1 " + status_code + "\r\n";
+	response = "HTTP/1.1 " + status_code + "\r\n";
 	response += headers + "\r\n";
 	response += "Content-Type: " + content_type + "\r\n";  // use the parsed content type
 	response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
 	response += "\r\n";
 	response += content;
 
-	// std::cout << response << std::endl;
+	// std::cout << response << "\n";
 
-	return response;
+	return 0;
 }

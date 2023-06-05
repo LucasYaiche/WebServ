@@ -57,17 +57,6 @@ void Server::close_sockets()
         }
 }
 
-std::pair<bool, Location>   Server::check_location(ServInfo& current_port, const std::string& request_location) 
-{
-    for (size_t i = 0; i < current_port.getLocation().size(); i++) {
-        if (current_port.getLocation()[i].getPath() == request_location) {
-            return std::make_pair(true, current_port.getLocation()[i]);
-        }
-    }
-    // Return a default Location if not found
-    return std::make_pair(false, Location());
-}
-
 bool Server::is_method_valid(std::pair<bool, Location> result, const std::string& method) 
 {
     if (method == "POST" || method == "GET" || method == "DELETE")
@@ -210,6 +199,8 @@ void Server::run()
                     {
                         if (handle_cgi_request(_fds[i].fd, request, _ports) == -1)
                         {
+                            send_error_response(_fds[i].fd, 500, "Internal Server Error");
+                            delete_socket(client_socket, i);
                             continue;
                         }
                     }
@@ -217,21 +208,21 @@ void Server::run()
                     {    
                         if (method == "GET") 
                         {
-                            if (handle_get_request(_fds[i].fd, request, current_port.getRoot(), current_port) == -1)
+                            if (handle_get_request(_fds[i].fd, request, current_port) == -1)
                             {
                                 continue;
                             }
                         }
                         else if (method == "POST") 
                         {
-                            if (handle_post_request(_fds[i].fd, request, current_port.getRoot(), current_port) == -1)
+                            if (handle_post_request(_fds[i].fd, request, current_port) == -1)
                             {
                                 continue;
                             }
                         }
                         else if (method == "DELETE") 
                         {
-                            if (handle_delete_request(_fds[i].fd, request, current_port.getRoot(), current_port) == -1)
+                            if (handle_delete_request(_fds[i].fd, request, current_port) == -1)
                             {
                                 continue;
                             }
@@ -267,13 +258,21 @@ int Server::handle_cgi_request(int client_fd, const Request& request, std::vecto
 
     Socket client_socket;
     client_socket.set_socket_fd(client_fd);
+    client_socket.set_non_blocking();
     
     // Create a new CGI instance and run the script
     CGI cgi(path, query_string, request, ports, client_fd);
-    std::string script_output = cgi.run_cgi_script();
+    std::string script_output;
+    int script_status = cgi.run_cgi_script(script_output);
+
+    if(script_status != 0)
+    {
+        
+        std::cerr << "Error: could not run CGI script\n";
+        return -1;
+    }
 
     // Send the script output back to the client
-    client_socket.set_non_blocking();
     if (client_socket.send(script_output.c_str(), script_output.size()) == -1) 
     {
         std::cerr << "Error: could not send data\n";
