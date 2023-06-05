@@ -175,10 +175,11 @@ public:
                 errorExit("Error: error_page path does not exist");
             current_server.setErrors(code, path);
         }
-        else if (keyword == "redir") {
+        else if (keyword == "return") {
             std::string redir;
-            ss >> redir;
-            current_location.setRedir(redir);
+            int code;
+            ss >> code >> redir;
+            current_location.setRedir(code, redir);
         }
         else if (keyword == "dir") {
             std::string dir;

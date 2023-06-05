@@ -2,6 +2,7 @@
 #define LOCATION_HPP
 
 #include <iostream>
+#include <utility>
 
 class Location {
 
@@ -11,7 +12,7 @@ public:
 
     Location& operator=(const Location & other) {
         _redir = other._redir;
-        _dir = other._redir;
+        _dir = other._dir;
         _methods = other._methods;
         _root = other._root;
         _index = other._index;
@@ -20,7 +21,7 @@ public:
         return *this;
     }
 
-    std::string getRedir(void) const { return _redir; };
+    std::pair<int, std::string> getRedir(void) const { return _redir; };
     std::string getDir(void) const { return _dir; };
     std::vector<std::string> getMethods(void) const { return _methods; };
     std::string getRoot(void) const { return _root; };
@@ -28,7 +29,7 @@ public:
     bool getDirListing(void) const { return _dir_listing; };
     std::string getPath(void) const { return _path; };
 
-    void setRedir(std::string r) { _redir = r; };
+    void setRedir(int code, std::string r) { _redir.first = code; _redir.second = r; };
     void setDir(std::string d) { _dir = d; };
     void setMethod(std::string m) { _methods.push_back(m); };
     void setRoot(std::string r) { _root = r; };
@@ -38,7 +39,7 @@ public:
 
 private:
     std::string _path;
-    std::string _redir;
+    std::pair<int, std::string> _redir;
     std::string _dir;
     std::vector<std::string> _methods;
     std::string _root;
