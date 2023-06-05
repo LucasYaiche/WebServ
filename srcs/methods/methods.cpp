@@ -57,7 +57,21 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
     std::string root = port.getRoot();
     std::pair<bool, Location> location_check = check_location(port, request.get_uri());
     if (location_check.first)
-        root = location_check.second.getRoot();
+    {
+        // Response header for a redirection
+        std::string response_header = "HTTP/1.1 301 Moved Permanently\r\n";
+        response_header += "Location: " + location_check.second.getRedir() + "\r\n";
+        response_header += "\r\n";
+
+        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
+            std::cerr << "Error: could not send data\n";
+            return -1;
+        }
+        return 0;
+    }
+
+
+
 
     // Create the file path
     std::string file_path = root + request.get_uri();
