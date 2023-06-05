@@ -166,7 +166,7 @@ void Server::run()
 
                     if (!_buffer)
                     {
-                        send_error_response(client_socket.get_fd(), 500, "Internal Server Error");
+                        send_error_response(client_socket.get_fd(), 500, "Internal Server Error", current_port);
                         delete_socket(client_socket, i);
                         continue;
                     }
@@ -187,7 +187,7 @@ void Server::run()
                     Request request;
                     if (request.parse(_buffer, bytes_received) == -1)
                     {
-                        send_error_response(client_socket.get_fd(), 400, "Bad Request");
+                        send_error_response(client_socket.get_fd(), 400, "Bad Request", current_port);
                         delete_socket(client_socket, i);
                         continue;
                     }
@@ -201,7 +201,7 @@ void Server::run()
                     {
                         if (handle_cgi_request(_fds[i].fd, request, _ports) == -1)
                         {
-                            send_error_response(_fds[i].fd, 500, "Internal Server Error");
+                            send_error_response(_fds[i].fd, 500, "Internal Server Error", current_port);
                             delete_socket(client_socket, i);
                             continue;
                         }
@@ -232,7 +232,7 @@ void Server::run()
                     }
                     else 
                     {
-                        send_error_response(client_socket.get_fd(), 405, "Method not allowed");
+                        send_error_response(client_socket.get_fd(), 405, "Method not allowed", current_port);
 
                         continue;
                     }

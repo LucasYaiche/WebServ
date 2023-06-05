@@ -129,7 +129,7 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
     } 
     else // If file not found
     {
-        return send_error_response(client_socket, 404, "Not Found");
+        return send_error_response(client_socket, 404, "Not Found", port);
     }
     return 0;
 }
@@ -146,8 +146,6 @@ int handle_post_request(int client_socket, const Request& request, ServInfo port
 
     // Create the file path
     std::string file_path = root_directory + request.get_uri();
-
-    std::cout << request.get_body().data() << std::endl;
 
     // Open the file for writing
     std::ofstream file(file_path, std::ios::binary | std::ios::trunc);
@@ -175,7 +173,7 @@ int handle_post_request(int client_socket, const Request& request, ServInfo port
     } 
     else // If file not found
     {
-        return send_error_response(client_socket, 500, "Internal Server Error");
+        return send_error_response(client_socket, 500, "Internal Server Error", port);
     }
 }
 
@@ -206,16 +204,51 @@ int handle_delete_request(int client_socket, const Request& request, ServInfo po
     else 
     {
         // File not found or couldn't be deleted
-        return send_error_response(client_socket, 404, "Not Found");
+        return send_error_response(client_socket, 404, "Not Found", port);
     }
     return 0;
 }
 
-int send_error_response(int client_socket, int status_code, const std::string& status_message)
+int send_error_response(int client_socket, int status_code, const std::string& status_message, ServInfo port)
 {
     std::string error_page;
     std::string response_header = "HTTP/1.1 " + std::to_string(status_code) + " " + status_message + "\r\n";
     response_header += "Content-Type: text/html\r\n";
+
+    std::string errorPagePath = port.getErrors();
+
+    if (!errorPagePath.empty()) 
+    {
+        
+        // Read the file content
+        std::ifstream file(errorPagePath, std::ios::binary);
+
+        if (file) 
+        {
+            // Read the file content into a string
+            std::ostringstream file_stream;
+            file_stream << file.rdbuf();
+            error_page = file_stream.str();
+
+            response_header += "Content-Length: " + std::to_string(error_page.size()) + "\r\n";
+            response_header += "\r\n";
+            if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
+                std::cerr << "Error: could not send data\n";
+                return -1;
+            }
+
+            if (send(client_socket, error_page.data(), error_page.size(), 0) == -1) {
+                std::cerr << "Error: could not send data\n";
+                return -1;
+            }
+            
+            return 0;
+        } 
+        else // If custom error file not found, fall back to default error message
+        {
+            std::cerr << "Error: could not open custom error page\n";
+        }
+    }
 
     // Default styles for all error pages
     std::string default_style = "<style>"

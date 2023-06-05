@@ -9,7 +9,9 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #f0f4f5;
+            background-color: #ee742d;
+            background: linear-gradient(90deg, rgba(238,116,45,1) 0%, rgba(223,88,38,1) 50%, rgba(207,57,30,1) 100%);
+            color: #fff;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -17,21 +19,27 @@
         }
         .container {
             text-align: center;
+            border: 5px solid #fff;
+            padding: 20px;
+            border-radius: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
         }
         .error {
             font-size: 72px;
-            color: #154a6e;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
         .message {
             font-size: 24px;
-            color: #154a6e;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="error">Error 404</h1>
-        <p class="message">The page you requested could not be found.</p>
+        <h1 class="error">An Error Occured</h1>
+        <p class="message">The server failed.</p>
     </div>
 </body>
 </html>

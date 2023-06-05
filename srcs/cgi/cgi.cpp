@@ -184,8 +184,6 @@ int	CGI::run_cgi_script(std::string& response)
 	response += "Content-Length: " + std::to_string(content.size()) + "\r\n";
 	response += "\r\n";
 	response += content;
-
-	// std::cout << response << "\n";
-
+	
 	return 0;
 }

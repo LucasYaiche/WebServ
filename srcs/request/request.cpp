@@ -79,8 +79,9 @@ int Request::parse(char *buffer, size_t length)
     }
     body.resize(content_length);
    request_stream.read(&body[0], content_length);
-   if (content_length == -1) {
-       std::cout << "Error: could not read data\n";
+   if (content_length == -1) 
+   {
+       std::cerr << "Error: could not read data\n";
        return -1;
    }
    return 0;

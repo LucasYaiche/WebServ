@@ -20,7 +20,7 @@ public:
             errorExit("Bad file extension");
         std::ifstream config_file(path.c_str());
         if (!config_file){
-            std::cout << "Cannot open config file: " << path << std::endl;
+            std::cerr << "Cannot open config file: " << path << std::endl;
             exit(1);
         }
         std::string line;
