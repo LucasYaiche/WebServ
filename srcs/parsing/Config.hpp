@@ -177,7 +177,6 @@ public:
         }
         else if (keyword == "redir") {
             std::string redir;
-
             ss >> redir;
             current_location.setRedir(redir);
         }

@@ -12,7 +12,7 @@ class Location;
 class ServInfo {
 
 public:
-    ServInfo(): _port(0), _body_size(0) {};
+    ServInfo(): _port(0), _body_size(1) {};
     ~ServInfo() {};
 
     /* Getters */
