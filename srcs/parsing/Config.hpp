@@ -142,10 +142,22 @@ public:
         else if (keyword == "dir_listing") {
             std::string dir_listing;
             ss >> dir_listing;
-            if (in_location)
-                current_location.setDirListing(true);
-            else
-                current_server.setDirListing(true);
+            if (dir_listing.compare("on") == 0) {
+                if (in_location)
+                    current_location.setDirListing(true);
+                else
+                    current_server.setDirListing(true);
+            }
+            else if (dir_listing.compare("off") == 0) {
+                if (in_location)
+                    current_location.setDirListing(false);
+                else
+                    current_server.setDirListing(false);
+            }
+            else {
+                std::cerr << "wrong value for dir_listing\n";
+                exit(1);
+            }
         }
         else if (keyword == "client_max_body_size") {
             long int body_size;
