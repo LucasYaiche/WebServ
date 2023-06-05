@@ -57,26 +57,28 @@ void Server::close_sockets()
         }
 }
 
-bool Server::is_method_valid(std::pair<bool, Location> result, const std::string& method) 
+bool Server::is_method_valid(std::pair<bool, Location> result, const std::string& method, ServInfo port) 
 {
-    if (method == "POST" || method == "GET" || method == "DELETE")
-    {
-        return true;
-    }
-    
+    // Check location level if a location exists
     if(result.first)
     {
         Location port_location = result.second;
 
-        for (size_t i = 0; i < port_location.getMethods().size(); i++) 
-        {
-            if (port_location.getMethods()[i] == method) 
-            {
-                return true;
-            }
-        }
+        const std::vector<std::string>& location_methods = port_location.getMethods();
+        if (std::find(location_methods.begin(), location_methods.end(), method) == location_methods.end())
+            return false;
+        else
+            return true;
     }
-    return false;
+    // Check port level first
+    const std::vector<std::string>& port_methods = port.getMethods();
+    if (std::find(port_methods.begin(), port_methods.end(), method) == port_methods.end())
+    {
+        return false;
+    }
+    
+
+    return true;
 }
 
 void    Server::delete_socket(Socket client_socket, size_t &i)
@@ -193,7 +195,7 @@ void Server::run()
                     std::pair<bool, Location> result = check_location(current_port, request.get_uri());
 
                     std::string method = request.get_method();
-                    bool methodValid = is_method_valid(result, method);
+                    bool methodValid = is_method_valid(result, method, current_port);
 
                     if (request.is_cgi() && methodValid)
                     {
