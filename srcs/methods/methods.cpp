@@ -241,13 +241,15 @@ int send_error_response(int client_socket, int status_code, const std::string& s
     std::string response_header = "HTTP/1.1 " + std::to_string(status_code) + " " + status_message + "\r\n";
     response_header += "Content-Type: text/html\r\n";
 
-    std::string errorPagePath = port.getErrors();
+    std::map<int, std::string> errorPagesMap = port.getErrors();
+    std::map<int, std::string>::iterator errorPagePathIter = errorPagesMap.find(status_code);
 
-    if (!errorPagePath.empty()) 
+    if (errorPagePathIter != errorPagesMap.end()) 
     {
+        std::string errorPagePath = errorPagePathIter->second;
         
         // Read the file content
-        std::ifstream file(errorPagePath, std::ios::binary);
+        std::ifstream file(errorPagePath.c_str(), std::ios::binary);
 
         if (file) 
         {
@@ -260,8 +262,6 @@ int send_error_response(int client_socket, int status_code, const std::string& s
             response_header += "\r\n";
             std::string response = response_header + error_page.data();
             return (send(client_socket, response.c_str(), response.size(), 0)); 
-            
-            return 0;
         } 
         else // If custom error file not found, fall back to default error message
         {
