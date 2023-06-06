@@ -173,7 +173,6 @@ public:
             if (stat(path.c_str(), &info) != 0)
                 errorExit("Error: error_page path does not exist");
             current_server.setErrors(path);
-            std::cout << current_server.getErrors() << std::endl;
         }
         else if (keyword == "redir") {
             std::string redir;
