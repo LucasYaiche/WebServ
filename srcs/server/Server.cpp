@@ -199,12 +199,15 @@ void Server::run()
                     std::string method = request.get_method();
                     bool methodValid = is_method_valid(result, method, current_port);
 
+                    Socket method_socket;
+                    method_socket.set_socket_fd(_fds[i].fd);
+                    method_socket.set_non_blocking();
 
                     if (request.is_cgi() && methodValid)
                     {
-                        if (handle_cgi_request(_fds[i].fd, request, _ports) == -1)
+                        if (handle_cgi_request(method_socket, request, _ports) == -1)
                         {
-                            send_error_response(_fds[i].fd, 500, "Internal Server Error", current_port);
+                            send_error_response(method_socket.get_fd(), 500, "Internal Server Error", current_port);
                             delete_socket(client_socket, i);
                             continue;
                         }
@@ -213,7 +216,7 @@ void Server::run()
                     {    
                         if (method == "GET") 
                         {
-                            if (handle_get_request(_fds[i].fd, request, current_port) == -1)
+                            if (handle_get_request(method_socket, request, current_port) == -1)
                             {
                                 delete_socket(client_socket, i);
                                 continue;
@@ -221,7 +224,7 @@ void Server::run()
                         }
                         else if (method == "POST") 
                         {
-                            if (handle_post_request(_fds[i].fd, request, current_port) == -1)
+                            if (handle_post_request(method_socket, request, current_port) == -1)
                             {
                                 delete_socket(client_socket, i);
                                 continue;
@@ -229,7 +232,7 @@ void Server::run()
                         }
                         else if (method == "DELETE") 
                         {
-                            if (handle_delete_request(_fds[i].fd, request, current_port) == -1)
+                            if (handle_delete_request(method_socket, request, current_port) == -1)
                             {
                                 delete_socket(client_socket, i);
                                 continue;
@@ -238,7 +241,7 @@ void Server::run()
                     }
                     else 
                     {
-                        send_error_response(client_socket.get_fd(), 405, "Method not allowed", current_port);
+                        send_error_response(method_socket.get_fd(), 405, "Method not allowed", current_port);
                         delete_socket(client_socket, i);
                         continue;
                     }
@@ -250,20 +253,16 @@ void Server::run()
     close_sockets();
 }
 
-int Server::handle_cgi_request(int client_fd, const Request& request, std::vector<ServInfo> ports)
+int Server::handle_cgi_request(Socket method_socket, const Request& request, std::vector<ServInfo> ports)
 {
     // Extract the path and the query string from the URI
     std::string uri = request.get_uri();
     std::size_t delimiter_pos = uri.find('?');
     std::string path = uri.substr(0, delimiter_pos);
     std::string query_string = delimiter_pos == std::string::npos ? "" : uri.substr(delimiter_pos + 1);
-
-    Socket client_socket;
-    client_socket.set_socket_fd(client_fd);
-    client_socket.set_non_blocking();
     
     // Create a new CGI instance and run the script
-    CGI cgi(path, query_string, request, ports, client_fd);
+    CGI cgi(path, query_string, request, ports, method_socket.get_fd());
     std::string script_output;
     int script_status = cgi.run_cgi_script(script_output);
 
@@ -275,10 +274,5 @@ int Server::handle_cgi_request(int client_fd, const Request& request, std::vecto
     }
 
     // Send the script output back to the client
-    if (client_socket.send(script_output.c_str(), script_output.size()) == -1) 
-    {
-        std::cerr << "Error: could not send data\n";
-        return -1;
-    }
-    return 0;
+    return (method_socket.send(script_output.c_str(), script_output.size()));
 }

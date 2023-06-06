@@ -22,7 +22,7 @@ class Server
         void	               		run();
         void                    	close_sockets();
 		bool 						is_method_valid(std::pair<bool, Location> result, const std::string& method, ServInfo port);
-        int                     	handle_cgi_request(int client_fd, const Request& request, std::vector<ServInfo> ports);
+        int                     	handle_cgi_request(Socket method_socket, const Request& request, std::vector<ServInfo> ports);
 		void    					delete_socket(Socket client_socket, size_t &i);
 
 

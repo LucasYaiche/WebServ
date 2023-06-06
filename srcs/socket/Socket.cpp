@@ -64,7 +64,19 @@ ssize_t Socket::recv(void* buffer, size_t length)
 
 ssize_t Socket::send(const void* buffer, size_t length) 
 {
-    return ::send(_socket_fd, buffer, length, 0);
+    ssize_t returned = ::send(_socket_fd, buffer, length, 0);
+    if(!returned)
+    {
+        std::cerr << "Client closed the connection.";
+        return returned;
+    }
+    else if (returned == -1)
+    {
+        std::cerr << "An error occured while sending the data.";
+        return returned;
+    }
+    return returned;
+
 }
 
 int Socket::set_non_blocking()

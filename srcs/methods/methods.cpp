@@ -40,7 +40,7 @@ std::string get_mime_type(const std::string& extension)
 }
 
 // This function is used to send the content of a directory as an HTML list.
-int handle_directory_request(int client_socket, const std::string& directory_path, const std::string& root) 
+int handle_directory_request(Socket method_socket, const std::string& directory_path, const std::string& root) 
 {
     std::string response_body = "<html><body><ul>";
 
@@ -75,16 +75,10 @@ int handle_directory_request(int client_socket, const std::string& directory_pat
     response_header += "\r\n";
     std::string response = response_header + response_body;
 
-    if (send(client_socket, response.c_str(), response.size(), 0) == -1) 
-    {
-        std::cerr << "Error: could not send data\n";
-        return -1;
-    }
-    
-    return 0;
+    return (method_socket.send(response.c_str(), response.size()));
 }
 
-int handle_get_request(int client_socket, const Request& request, ServInfo port)
+int handle_get_request(Socket method_socket, const Request& request, ServInfo port)
 {
     std::string root = port.getRoot();
     std::pair<bool, Location> location_check = check_location(port, request.get_uri());
@@ -95,11 +89,7 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
         response_header += "Location: " + location_check.second.getRedir() + "\r\n";
         response_header += "\r\n";
 
-        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
-            std::cerr << "Error: could not send data\n";
-            return -1;
-        }
-        return 0;
+        return(method_socket.send(response_header.c_str(), response_header.size()));
     }
 
     // Create the file path
@@ -119,7 +109,7 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
         if (dir_listing && file_path != port.getRoot() + "/")
         {
             // Handle directory request
-            return handle_directory_request(client_socket, file_path, root);
+            return handle_directory_request(method_socket, file_path, root);
         }
         else if (file_path == port.getRoot() + "/")
         {
@@ -148,14 +138,11 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
 
         std::string response = response_header + file_content;
 
-        if (send(client_socket, response.c_str(), response.size(), 0) == -1) {
-            std::cerr << "Error: could not send data\n";
-            return -1;
-        }
+        return (method_socket.send(response.c_str(), response.size()));
     } 
     else // If file not found
     {
-        send_error_response(client_socket, 404, "Not Found", port);
+        send_error_response(method_socket.get_fd(), 404, "Not Found", port);
         return -1;
     }
     return 0;
@@ -164,7 +151,7 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
 /*           POST           */
 /****************************/
 
-int handle_post_request(int client_socket, const Request& request, ServInfo port)
+int handle_post_request(Socket method_socket, const Request& request, ServInfo port)
 {
     // Get the root directory for serving files
     std::string root_directory = port.getRoot();
@@ -177,7 +164,7 @@ int handle_post_request(int client_socket, const Request& request, ServInfo port
     if (stat(file_path.c_str(), &buffer) == 0) 
     {
         // File already exists, return an error response
-        send_error_response(client_socket, 409, "Conflict: File already exists", port);
+        send_error_response(method_socket.get_fd(), 409, "Conflict: File already exists", port);
         return -1;
     }
 
@@ -190,7 +177,7 @@ int handle_post_request(int client_socket, const Request& request, ServInfo port
         file.write(request.get_body().data(), request.get_body().size());
         if (file.bad()) 
         {
-            send_error_response(client_socket, 500, "Internal Server Error: Could not write data", port);
+            send_error_response(method_socket.get_fd(), 500, "Internal Server Error: Could not write data", port);
             std::cerr << "Error: could not write data\n";
             file.close();
             return -1;
@@ -205,17 +192,12 @@ int handle_post_request(int client_socket, const Request& request, ServInfo port
         response_header += "\r\n";
         response_header += response_body;
 
-        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) 
-        {
-            std::cerr << "Error: could not send data\n";
-            return -1;
-        }
-        return 0;
+        return (method_socket.send(response_header.c_str(), response_header.size()));
     } 
     else 
     {
         // File failed to open, return error
-        send_error_response(client_socket, 500, "Internal Server Error: Could not open file", port);
+        send_error_response(method_socket.get_fd(), 500, "Internal Server Error: Could not open file", port);
         return -1;
     }
 }
@@ -224,7 +206,7 @@ int handle_post_request(int client_socket, const Request& request, ServInfo port
 /*          DELETE          */
 /****************************/
 
-int handle_delete_request(int client_socket, const Request& request, ServInfo port)
+int handle_delete_request(Socket method_socket, const Request& request, ServInfo port)
 {
     std::string root = port.getRoot();
     std::pair<bool, Location> location_check = check_location(port, request.get_uri());
@@ -243,15 +225,12 @@ int handle_delete_request(int client_socket, const Request& request, ServInfo po
         // Send success response
         std::string response_header = "HTTP/1.1 204 No Content\r\n";
         response_header += "\r\n";
-        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
-            std::cerr << "Error: could not send data\n";
-            return -1;
-        }
+        return (method_socket.send(response_header.c_str(), response_header.size()));
     }
     else 
     {
         // File not found or couldn't be deleted
-        return send_error_response(client_socket, 404, "Not Found", port);
+        return send_error_response(method_socket.get_fd(), 404, "Not Found", port);
     }
     return 0;
 }
@@ -280,11 +259,7 @@ int send_error_response(int client_socket, int status_code, const std::string& s
             response_header += "Content-Length: " + std::to_string(error_page.size()) + "\r\n";
             response_header += "\r\n";
             std::string response = response_header + error_page.data();
-            if (send(client_socket, response.c_str(), response.size(), 0) == -1) 
-            {
-                std::cerr << "Error: could not send data\n";
-                return -1;
-            }
+            return (send(client_socket, response.c_str(), response.size(), 0)); 
             
             return 0;
         } 
@@ -352,10 +327,16 @@ int send_error_response(int client_socket, int status_code, const std::string& s
     response_header += "\r\n";
     std::string response = response_header + error_page.data();
 
-    if (send(client_socket, response.c_str(), response.size(), 0) == -1) 
+    ssize_t returned = send(client_socket, response.c_str(), response.size(), 0); 
+    if(!returned)
     {
-        std::cerr << "Error: could not send data\n";
-        return -1;
+        std::cerr << "Client closed the connection.";
+        return returned;
     }
-    return 0;
+    else if (returned == -1)
+    {
+        std::cerr << "An error occured while sending the data.";
+        return returned;
+    }
+    return returned;
 }
