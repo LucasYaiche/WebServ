@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1a2a6c;
+            background: linear-gradient(90deg, rgba(26,42,108,1) 0%, rgba(38,83,188,1) 50%, rgba(51,125,255,1) 100%);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            border: 5px solid #fff;
+            padding: 20px;
+            border-radius: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+        .error {
+            font-size: 72px;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .message {
+            font-size: 24px;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="error">An Error Occured</h1>
+        <p class="message">The server failed.</p>
+    </div>
+</body>
+</html>

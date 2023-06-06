@@ -34,6 +34,8 @@ Server::Server(std::vector<ServInfo> ports) : _ports(ports), _buffer_size(0)
         }
     }
     _buffer = new char[_buffer_size];
+    if (!_buffer)
+        throw std::runtime_error("failed to allocate buffer.");
 }
 
 Server::~Server() 
@@ -75,8 +77,7 @@ bool Server::is_method_valid(std::pair<bool, Location> result, const std::string
     if (std::find(port_methods.begin(), port_methods.end(), method) == port_methods.end())
     {
         return false;
-    }
-    
+    }    
 
     return true;
 }
@@ -93,6 +94,7 @@ void Server::run()
 {
     while (true) 
     {
+
         int poll_result = poll(&_fds[0], _fds.size(), -1);
 
         if (poll_result <= 0) 
@@ -197,6 +199,7 @@ void Server::run()
                     std::string method = request.get_method();
                     bool methodValid = is_method_valid(result, method, current_port);
 
+
                     if (request.is_cgi() && methodValid)
                     {
                         if (handle_cgi_request(_fds[i].fd, request, _ports) == -1)
@@ -212,6 +215,7 @@ void Server::run()
                         {
                             if (handle_get_request(_fds[i].fd, request, current_port) == -1)
                             {
+                                delete_socket(client_socket, i);
                                 continue;
                             }
                         }
@@ -219,6 +223,7 @@ void Server::run()
                         {
                             if (handle_post_request(_fds[i].fd, request, current_port) == -1)
                             {
+                                delete_socket(client_socket, i);
                                 continue;
                             }
                         }
@@ -226,6 +231,7 @@ void Server::run()
                         {
                             if (handle_delete_request(_fds[i].fd, request, current_port) == -1)
                             {
+                                delete_socket(client_socket, i);
                                 continue;
                             }
                         }
@@ -233,15 +239,9 @@ void Server::run()
                     else 
                     {
                         send_error_response(client_socket.get_fd(), 405, "Method not allowed", current_port);
-
+                        delete_socket(client_socket, i);
                         continue;
                     }
-
-                    if (client_socket.send(_buffer, bytes_received) == -1) {
-
-                        continue;
-                    }
-
                 }
             }
             usleep(4000);

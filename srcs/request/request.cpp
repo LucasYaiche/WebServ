@@ -78,13 +78,13 @@ int Request::parse(char *buffer, size_t length)
         content_length = std::stol(headers["Content-Length"]);
     }
     body.resize(content_length);
-   request_stream.read(&body[0], content_length);
-   if (content_length == -1) 
-   {
-       std::cerr << "Error: could not read data\n";
-       return -1;
-   }
-   return 0;
+    request_stream.read(&body[0], content_length);
+    if (content_length == -1) 
+    {
+        std::cerr << "Error: could not read data\n";
+        return -1;
+    }
+    return 0;
 }
 
 bool Request::is_cgi() const 

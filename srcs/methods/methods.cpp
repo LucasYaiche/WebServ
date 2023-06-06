@@ -11,8 +11,37 @@ std::pair<bool, Location>   check_location(ServInfo& current_port, const std::st
     return std::make_pair(false, Location());
 }
 
+
+/****************************/
+/*           GET            */
+/****************************/
+
+// function to get file extension
+std::string get_extension(const std::string& file_path) 
+{
+    size_t pos = file_path.find_last_of('.');
+    if (pos != std::string::npos) {
+        return file_path.substr(pos);
+    } else {
+        return "";
+    }
+}
+
+std::string get_mime_type(const std::string& extension) 
+{
+    // Here you could add more mappings for different file types as per your needs
+    if (extension == ".html") return "text/html";
+    else if (extension == ".css") return "text/css";
+    else if (extension == ".js") return "application/javascript";
+    else if (extension == ".jpg" || extension == ".jpeg") return "image/jpeg";
+    else if (extension == ".png") return "image/png";
+    else if (extension == ".gif") return "image/gif";
+    else return "text/plain"; // default to plain text
+}
+
 // This function is used to send the content of a directory as an HTML list.
-int handle_directory_request(int client_socket, const std::string& directory_path) {
+int handle_directory_request(int client_socket, const std::string& directory_path, const std::string& root) 
+{
     std::string response_body = "<html><body><ul>";
 
     DIR* dirp = opendir(directory_path.c_str());
@@ -25,7 +54,14 @@ int handle_directory_request(int client_socket, const std::string& directory_pat
     struct dirent* dp;
     while ((dp = readdir(dirp)) != NULL) {
         std::string filename = dp->d_name;
-        response_body += "<li><a href=\"" + filename + "\">" + filename + "</a></li>";
+        
+        // Skip directories that start with a dot
+        if (filename[0] == '.')
+            continue;
+
+        // Add the relative path from the root to the filename.
+        std::string filepath = directory_path.substr(root.length()) + "/" + filename; 
+        response_body += "<li><a href=\"" + filepath + "\">" + filename + "</a></li>";
     }
 
     closedir(dirp);
@@ -37,14 +73,10 @@ int handle_directory_request(int client_socket, const std::string& directory_pat
     response_header += "Content-Type: text/html\r\n";
     response_header += "Content-Length: " + std::to_string(response_body.size()) + "\r\n";
     response_header += "\r\n";
+    std::string response = response_header + response_body;
 
-    if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
-        std::cerr << "Error: could not send data\n";
-        return -1;
-    }
-
-    // Send the directory listing content
-    if (send(client_socket, response_body.data(), response_body.size(), 0) == -1) {
+    if (send(client_socket, response.c_str(), response.size(), 0) == -1) 
+    {
         std::cerr << "Error: could not send data\n";
         return -1;
     }
@@ -70,9 +102,6 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
         return 0;
     }
 
-
-
-
     // Create the file path
     std::string file_path = root + request.get_uri();
 
@@ -90,7 +119,7 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
         if (dir_listing && file_path != port.getRoot() + "/")
         {
             // Handle directory request
-            return handle_directory_request(client_socket, file_path);
+            return handle_directory_request(client_socket, file_path, root);
         }
         else if (file_path == port.getRoot() + "/")
         {
@@ -98,8 +127,6 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
             file_path += port.getIndex();
         }
     }
-
-
     // Read the file content
     std::ifstream file(file_path, std::ios::binary);
     std::string file_content;
@@ -111,50 +138,59 @@ int handle_get_request(int client_socket, const Request& request, ServInfo port)
         file_stream << file.rdbuf();
         file_content = file_stream.str();
 
+
+
         // Send the HTTP response header
         std::string response_header = "HTTP/1.1 200 OK\r\n";
+        response_header += "Content-Type: " + get_mime_type(get_extension(file_path)) + "\r\n";
         response_header += "Content-Length: " + std::to_string(file_content.size()) + "\r\n";
         response_header += "\r\n";
 
-        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
-            std::cerr << "Error: could not send data\n";
-            return -1;
-        }
+        std::string response = response_header + file_content;
 
-        // Send the file content
-        if (send(client_socket, file_content.data(), file_content.size(), 0) == -1) {
+        if (send(client_socket, response.c_str(), response.size(), 0) == -1) {
             std::cerr << "Error: could not send data\n";
             return -1;
         }
     } 
     else // If file not found
     {
-        return send_error_response(client_socket, 404, "Not Found", port);
+        send_error_response(client_socket, 404, "Not Found", port);
+        return -1;
     }
     return 0;
 }
+/****************************/
+/*           POST           */
+/****************************/
 
 int handle_post_request(int client_socket, const Request& request, ServInfo port)
 {
-    std::string root = port.getRoot();
-    std::pair<bool, Location> location_check = check_location(port, request.get_uri());
-    if (location_check.first)
-        root = location_check.second.getRoot();
-
-    // Set the root directory for serving files
-    const std::string root_directory = root;
+    // Get the root directory for serving files
+    std::string root_directory = port.getRoot();
 
     // Create the file path
     std::string file_path = root_directory + request.get_uri();
+
+    // Check if the file already exists
+    struct stat buffer;
+    if (stat(file_path.c_str(), &buffer) == 0) 
+    {
+        // File already exists, return an error response
+        send_error_response(client_socket, 409, "Conflict: File already exists", port);
+        return -1;
+    }
 
     // Open the file for writing
     std::ofstream file(file_path, std::ios::binary | std::ios::trunc);
 
     if (file) 
-    {   
+    {
         // Write the content from the request body to the file
         file.write(request.get_body().data(), request.get_body().size());
-        if (file.bad()) {
+        if (file.bad()) 
+        {
+            send_error_response(client_socket, 500, "Internal Server Error: Could not write data", port);
             std::cerr << "Error: could not write data\n";
             file.close();
             return -1;
@@ -163,19 +199,30 @@ int handle_post_request(int client_socket, const Request& request, ServInfo port
 
         // Send the HTTP response header
         std::string response_header = "HTTP/1.1 201 Created\r\n";
+        response_header += "Content-Type: text/plain\r\n";
+        std::string response_body = "File successfully created.\r\n";
+        response_header += "Content-Length: " + std::to_string(response_body.size()) + "\r\n";
         response_header += "\r\n";
+        response_header += response_body;
 
-        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
+        if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) 
+        {
             std::cerr << "Error: could not send data\n";
             return -1;
         }
         return 0;
     } 
-    else // If file not found
+    else 
     {
-        return send_error_response(client_socket, 500, "Internal Server Error", port);
+        // File failed to open, return error
+        send_error_response(client_socket, 500, "Internal Server Error: Could not open file", port);
+        return -1;
     }
 }
+
+/****************************/
+/*          DELETE          */
+/****************************/
 
 int handle_delete_request(int client_socket, const Request& request, ServInfo port)
 {
@@ -232,12 +279,9 @@ int send_error_response(int client_socket, int status_code, const std::string& s
 
             response_header += "Content-Length: " + std::to_string(error_page.size()) + "\r\n";
             response_header += "\r\n";
-            if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
-                std::cerr << "Error: could not send data\n";
-                return -1;
-            }
-
-            if (send(client_socket, error_page.data(), error_page.size(), 0) == -1) {
+            std::string response = response_header + error_page.data();
+            if (send(client_socket, response.c_str(), response.size(), 0) == -1) 
+            {
                 std::cerr << "Error: could not send data\n";
                 return -1;
             }
@@ -306,14 +350,10 @@ int send_error_response(int client_socket, int status_code, const std::string& s
 
     response_header += "Content-Length: " + std::to_string(error_page.size()) + "\r\n";
     response_header += "\r\n";
+    std::string response = response_header + error_page.data();
 
-    if (send(client_socket, response_header.c_str(), response_header.size(), 0) == -1) {
-        std::cerr << "Error: could not send data\n";
-        return -1;
-    }
-
-    // Send the error page content
-    if (send(client_socket, error_page.data(), error_page.size(), 0) == -1) {
+    if (send(client_socket, response.c_str(), response.size(), 0) == -1) 
+    {
         std::cerr << "Error: could not send data\n";
         return -1;
     }
