@@ -168,11 +168,12 @@ public:
         }
         else if (keyword == "error_page") {
             std::string path;
+            int code;
             struct stat info;
-            ss >> path;
+            ss >> code >> path;
             if (stat(path.c_str(), &info) != 0)
                 errorExit("Error: error_page path does not exist");
-            current_server.setErrors(path);
+            current_server.setErrors(code, path);
         }
         else if (keyword == "redir") {
             std::string redir;
