@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -pedantic -std=c++98
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
 SRCDIR = srcs
 OBJDIR = objs

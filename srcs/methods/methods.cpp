@@ -1,16 +1,22 @@
 #include "methods.hpp"
 
+
+/****************************/
+/*           UTILS          */
+/****************************/
+
 std::pair<bool, Location>   check_location(ServInfo& current_port, const std::string& request_location) 
 {
-    for (size_t i = 0; i < current_port.getLocation().size(); i++) {
-        if (current_port.getLocation()[i].getPath() == request_location) {
+    for (size_t i = 0; i < current_port.getLocation().size(); i++) 
+    {
+        if (current_port.getLocation()[i].getPath() == request_location) 
+        {
             return std::make_pair(true, current_port.getLocation()[i]);
         }
     }
     // Return a default Location if not found
     return std::make_pair(false, Location());
 }
-
 
 /****************************/
 /*           GET            */
@@ -20,16 +26,18 @@ std::pair<bool, Location>   check_location(ServInfo& current_port, const std::st
 std::string get_extension(const std::string& file_path) 
 {
     size_t pos = file_path.find_last_of('.');
-    if (pos != std::string::npos) {
+    if (pos != std::string::npos) 
+    {
         return file_path.substr(pos);
-    } else {
+    } 
+    else 
+    {
         return "";
     }
 }
 
-std::string get_mime_type(const std::string& extension) 
+std::string extension_to_type(const std::string& extension) 
 {
-    // Here you could add more mappings for different file types as per your needs
     if (extension == ".html") return "text/html";
     else if (extension == ".css") return "text/css";
     else if (extension == ".js") return "application/javascript";
@@ -39,7 +47,7 @@ std::string get_mime_type(const std::string& extension)
     else return "text/plain"; // default to plain text
 }
 
-// This function is used to send the content of a directory as an HTML list.
+// In case of a directory reuqested with dir_listing on 
 int handle_directory_request(Socket method_socket, const std::string& directory_path, const std::string& root) 
 {
     std::string response_body = "<html><body><ul>";
@@ -52,7 +60,8 @@ int handle_directory_request(Socket method_socket, const std::string& directory_
     }
 
     struct dirent* dp;
-    while ((dp = readdir(dirp)) != NULL) {
+    while ((dp = readdir(dirp)) != NULL) 
+    {
         std::string filename = dp->d_name;
         
         // Skip directories that start with a dot
@@ -128,11 +137,9 @@ int handle_get_request(Socket method_socket, const Request& request, ServInfo po
         file_stream << file.rdbuf();
         file_content = file_stream.str();
 
-
-
         // Send the HTTP response header
         std::string response_header = "HTTP/1.1 200 OK\r\n";
-        response_header += "Content-Type: " + get_mime_type(get_extension(file_path)) + "\r\n";
+        response_header += "Content-Type: " + extension_to_type(get_extension(file_path)) + "\r\n";
         response_header += "Content-Length: " + std::to_string(file_content.size()) + "\r\n";
         response_header += "\r\n";
 
@@ -253,7 +260,7 @@ int send_error_response(int client_socket, int status_code, const std::string& s
 
         if (file) 
         {
-            // Read the file content into a string
+            // Put the file content into a string
             std::ostringstream file_stream;
             file_stream << file.rdbuf();
             error_page = file_stream.str();
@@ -319,7 +326,7 @@ int send_error_response(int client_socket, int status_code, const std::string& s
             break;
     }
 
-    // The error page now uses the status_message parameter
+    // Fill the error page with all the infos
     error_page = "<html><head><title>Error " + std::to_string(status_code) + "</title>" + default_style + "<style>.error,.message { color: " + error_color + "; }</style></head>";
     error_page += "<body><div class='container'><h1 class='error'>Error " + std::to_string(status_code) + "</h1><p class='message'>" + status_message + "</p></div></body></html>";
 

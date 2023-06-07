@@ -29,7 +29,8 @@ Server::Server(std::vector<ServInfo> ports) : _ports(ports), _buffer_size(0)
 
 
         //Size of buffer
-        if (ports[i].getBody_size() > _buffer_size) {
+        if (ports[i].getBody_size() > _buffer_size) 
+        {
             _buffer_size = ports[i].getBody_size();
         }
     }
@@ -45,15 +46,19 @@ Server::~Server()
 
 void Server::close_sockets() 
 {
-        for (size_t i = 0; i < _server_sockets.size(); ++i) {
-            if (_server_sockets[i].get_fd() != -1) {
+        for (size_t i = 0; i < _server_sockets.size(); ++i) 
+        {
+            if (_server_sockets[i].get_fd() != -1) 
+            {
                 _server_sockets[i].close();
             }
         }
-        for (size_t i = 0; i < _fds.size(); ++i) {
+        for (size_t i = 0; i < _fds.size(); ++i) 
+        {
             Socket client_socket;
             client_socket.set_socket_fd(_fds[i].fd);
-            if (client_socket.get_fd() != -1) {
+            if (client_socket.get_fd() != -1) 
+            {
                 client_socket.close();
             }
         }
@@ -78,7 +83,6 @@ bool Server::is_method_valid(std::pair<bool, Location> result, const std::string
     {
         return false;
     }    
-
     return true;
 }
 
@@ -175,12 +179,14 @@ void Server::run()
 
                     bytes_received = client_socket.recv(_buffer, _buffer_size);
 
-                    if (bytes_received < 0) {
+                    if (bytes_received < 0) 
+                    {
                         // recv() would block, treat as temporary error and continue to next iteration
                         // no need to delete socket in this case because of the non blocking mode
                         continue;
                     }
-                    else if (bytes_received == 0) {
+                    else if (bytes_received == 0) 
+                    {
                         // The client has closed the connection
                         delete_socket(client_socket, i);
                         continue;

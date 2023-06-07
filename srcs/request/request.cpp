@@ -37,7 +37,7 @@ int Request::parse(char *buffer, size_t length)
     std::istringstream request_stream(std::string(buffer, length));
     std::string line;
 
-    // Parse request line
+    // Parse the first line of the HTTP request, which contains method, URI, and HTTP version
     std::getline(request_stream, line);
     std::istringstream first_line(line);
     first_line >> method >> uri >> http_version;
@@ -46,8 +46,10 @@ int Request::parse(char *buffer, size_t length)
     // Parse headers
     while (std::getline(request_stream, line) && line != "\r") 
     {
+        // Headers are in the format key:value, so find the ':' separator
         std::size_t separator = line.find(':');
-        if (separator != std::string::npos) {
+        if (separator != std::string::npos) 
+        {
             std::string key = line.substr(0, separator);
             std::string value = line.substr(separator + 2);
 
@@ -60,8 +62,8 @@ int Request::parse(char *buffer, size_t length)
             headers[key] = value;
         }
     }
-
-    // Extract boundary from Content-Type header
+    
+    // If there's a Content-Type header, check if it has a boundary parameter (used in multipart requests)
     std::string boundary;
     if (headers.count("Content-Type")) 
     {
@@ -71,7 +73,7 @@ int Request::parse(char *buffer, size_t length)
         }
     }
 
-    // Read body if any
+    // If there's a Content-Length header, read the body of the request
     std::streamsize content_length = 0;
     if (headers.count("Content-Length")) 
     {

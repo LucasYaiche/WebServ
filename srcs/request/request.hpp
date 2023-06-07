@@ -25,6 +25,7 @@ class Request
         bool                                is_cgi() const;
 
     private:
+    
         std::string                         method;
         std::string                         uri;
         std::string                         http_version;
